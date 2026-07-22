@@ -1,0 +1,22 @@
+# Build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/*.keystore
+windows-viewer/bin/
+windows-viewer/obj/
+windows-viewer/publish/
+
+# Large binaries (GitHub 100MB limit; build locally)
+*.exe
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+.DS_Store
+
+# OS
+Thumbs.db

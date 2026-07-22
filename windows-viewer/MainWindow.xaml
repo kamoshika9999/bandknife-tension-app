@@ -1,0 +1,39 @@
+<Window x:Class="BandKnifeViewer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:scott="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+        Title="バンドナイフ張力ビューア" Height="700" Width="1000"
+        Background="#1E1E1E">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="200"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="データフォルダ:" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBlock x:Name="FolderText" Foreground="#90CAF9" VerticalAlignment="Center" Width="500"/>
+            <Button Content="フォルダ選択" Click="SelectFolder_Click" Margin="8,0"/>
+            <Button Content="更新" Click="Refresh_Click" Margin="4,0"/>
+            <Button Content="CSV出力" Click="ExportCsv_Click" Margin="4,0"/>
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="ダッシュボード（最新値）" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+                <Grid x:Name="DashboardGrid"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                <TextBlock Text="推移グラフ" Foreground="White" FontSize="16" FontWeight="Bold"/>
+                <ComboBox x:Name="EquipmentCombo" SelectionChanged="EquipmentCombo_SelectionChanged" Margin="0,4,0,4"/>
+                <scott:WpfPlot x:Name="TrendPlot" Height="200"/>
+            </StackPanel>
+        </Grid>
+        <DataGrid x:Name="HistoryGrid" Grid.Row="3" AutoGenerateColumns="True" Margin="0,8,0,0"
+                  Background="#2D2D2D" Foreground="White" RowBackground="#2D2D2D" AlternatingRowBackground="#333"/>
+    </Grid>
+</Window>
