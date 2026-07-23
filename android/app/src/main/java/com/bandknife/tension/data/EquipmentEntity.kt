@@ -18,5 +18,6 @@ data class EquipmentEntity(
     val specHzUpper: Double = 0.0,
     val widthMm: Double = 0.0,
     val thicknessMm: Double = 0.0,
-    val density: Double = 7850.0
+    val density: Double = 7850.0,
+    val deleted: Boolean = false
 )

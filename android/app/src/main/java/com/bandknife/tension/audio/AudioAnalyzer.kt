@@ -1,6 +1,7 @@
 package com.bandknife.tension.audio
 
 import android.content.Context
+import android.os.Build
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -57,20 +58,35 @@ class AudioAnalyzer(private val context: Context) {
 
     fun listInputDevices(): List<Pair<Int, String>> {
         val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        return manager.getDevices(AudioManager.GET_DEVICES_INPUTS).map { device ->
-            device.id to deviceLabel(device)
-        }
+        val selectable = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).filter(::isSelectableInputDevice)
+        val (builtins, externals) = selectable.partition { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC }
+        val builtin = builtins.firstOrNull { it.address.contains("bottom", ignoreCase = true) }
+            ?: builtins.firstOrNull()
+        val result = mutableListOf<Pair<Int, String>>()
+        builtin?.let { result.add(it.id to deviceLabel(it)) }
+        externals.forEach { result.add(it.id to deviceLabel(it)) }
+        return result
     }
 
-    private fun deviceLabel(device: AudioDeviceInfo): String {
-        val type = when (device.type) {
-            AudioDeviceInfo.TYPE_BUILTIN_MIC -> "内蔵マイク"
-            AudioDeviceInfo.TYPE_WIRED_HEADSET -> "有線ヘッドセット"
-            AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_HEADSET -> "USBマイク"
-            AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetoothマイク"
-            else -> "マイク (${device.type})"
+    private fun isSelectableInputDevice(device: AudioDeviceInfo): Boolean = when (device.type) {
+        AudioDeviceInfo.TYPE_BUILTIN_MIC,
+        AudioDeviceInfo.TYPE_WIRED_HEADSET,
+        AudioDeviceInfo.TYPE_USB_DEVICE,
+        AudioDeviceInfo.TYPE_USB_HEADSET,
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> true
+        else -> Build.VERSION.SDK_INT >= 31 && device.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+    }
+
+    private fun deviceLabel(device: AudioDeviceInfo): String = when (device.type) {
+        AudioDeviceInfo.TYPE_BUILTIN_MIC -> "内蔵マイク"
+        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "有線ヘッドセット"
+        AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_HEADSET -> "USBマイク"
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetoothマイク"
+        else -> if (Build.VERSION.SDK_INT >= 31 && device.type == AudioDeviceInfo.TYPE_BLE_HEADSET) {
+            "Bluetoothマイク"
+        } else {
+            "マイク (${device.type})"
         }
-        return type
     }
 
     fun measureNoiseLevel(onComplete: (Double) -> Unit) {

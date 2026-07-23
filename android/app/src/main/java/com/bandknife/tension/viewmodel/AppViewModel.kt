@@ -36,7 +36,8 @@ data class ContinuousState(
     val values: List<Double> = emptyList(),
     val frequencies: List<Double> = emptyList(),
     val stats: MeasurementStats? = null,
-    val lastTapMessage: String = ""
+    val lastTapMessage: String = "",
+    val savedRecordId: Long? = null
 )
 
 data class MeasureUiState(
@@ -58,6 +59,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val vibrator = app.getSystemService(VibratorManager::class.java)?.defaultVibrator
 
     val equipment = repository.equipment.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val deletedEquipment = repository.deletedEquipment.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val records = repository.records.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val appMode = repository.preferences.appMode.stateIn(viewModelScope, SharingStarted.Eagerly, AppMode.SIMPLE)
     val useKgf = repository.preferences.useKgf.stateIn(viewModelScope, SharingStarted.Eagerly, false)
@@ -77,6 +79,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _simpleStep = MutableStateFlow(SimpleStep.SELECT)
     val simpleStep: StateFlow<SimpleStep> = _simpleStep.asStateFlow()
+
+    private val _saveMessage = MutableStateFlow<String?>(null)
+    val saveMessage: StateFlow<String?> = _saveMessage.asStateFlow()
 
     private var audioJob: Job? = null
 
@@ -124,6 +129,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startMeasuring() {
+        if (_selectedEquipment.value == null) {
+            _saveMessage.value = "先に設備を選択してください"
+            return
+        }
         viewModelScope.launch {
             val sensitivity = repository.preferences.sensitivity.first()
             audio.setSensitivity(sensitivity)
@@ -134,6 +143,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             audio.start()
             resetContinuous()
         }
+    }
+
+    fun clearSaveMessage() {
+        _saveMessage.value = null
     }
 
     fun stopMeasuring() {
@@ -190,9 +203,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     suspend fun saveCurrentRecord(comment: String = ""): Long? {
-        val eq = _selectedEquipment.value ?: return null
+        val eq = _selectedEquipment.value ?: run {
+            _saveMessage.value = "設備が選択されていません"
+            return null
+        }
         val cont = _continuous.value
-        val stats = cont.stats ?: return null
+        cont.savedRecordId?.let { return it }
+        val stats = cont.stats ?: run {
+            _saveMessage.value = "記録できる測定結果がありません"
+            return null
+        }
         val record = MeasurementRecordEntity(
             equipmentId = eq.id,
             equipmentName = eq.name,
@@ -206,7 +226,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             comment = comment,
             rawValuesJson = JSONArray(cont.values).toString()
         )
-        return repository.saveRecord(record)
+        val id = repository.saveRecord(record)
+        _continuous.value = cont.copy(savedRecordId = id)
+        _saveMessage.value = "履歴に記録しました"
+        return id
     }
 
     fun formatTension(n: Double): String {
@@ -230,6 +253,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteRecord(record: MeasurementRecordEntity) {
         viewModelScope.launch { repository.deleteRecord(record) }
+    }
+
+    fun deleteEquipment(entity: EquipmentEntity) {
+        viewModelScope.launch {
+            repository.deleteEquipment(entity)
+            if (_selectedEquipment.value?.id == entity.id) {
+                _selectedEquipment.value = null
+            }
+        }
+    }
+
+    fun restoreEquipment(entity: EquipmentEntity) {
+        viewModelScope.launch { repository.restoreEquipment(entity) }
     }
 
     fun deleteRecordsInRange(from: Long, to: Long) {

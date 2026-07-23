@@ -74,13 +74,13 @@ fun MainScreen(vm: AppViewModel) {
             vm.repository.saveEquipment(
                 EquipmentEntity(
                     name = "ペフ用スライサー1号",
-                    massPerMeter = 0.314,
-                    spanMeters = 0.85,
+                    massPerMeter = 0.844,
+                    spanMeters = 1.0,
                     standardTension = 160.0,
                     specLower = 150.0,
                     specUpper = 180.0,
-                    widthMm = 50.0,
-                    thicknessMm = 0.8
+                    widthMm = 86.0,
+                    thicknessMm = 1.25
                 )
             )
         }

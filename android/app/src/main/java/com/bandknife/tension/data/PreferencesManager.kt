@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.map
 
 enum class AppMode { SIMPLE, ADVANCE, DETAIL }
 
+const val DEFAULT_DRIVE_URL =
+    "https://script.google.com/macros/s/AKfycbzEU9b-I9zWOiAE27l_VFxJucOWk8ViCZdeA2KgVLPZKd5rBNyDvUwF9y5vzg9NRPI_/exec"
+
 private val Context.dataStore by preferencesDataStore("settings")
 
 class PreferencesManager(private val context: Context) {
@@ -35,7 +38,7 @@ class PreferencesManager(private val context: Context) {
     val useKgf: Flow<Boolean> = context.dataStore.data.map { it[Keys.USE_KGF] ?: false }
     val sensitivity: Flow<Double> = context.dataStore.data.map { it[Keys.SENSITIVITY] ?: 0.08 }
     val continuousCount: Flow<Int> = context.dataStore.data.map { it[Keys.CONTINUOUS_COUNT] ?: 5 }
-    val driveUrl: Flow<String> = context.dataStore.data.map { it[Keys.DRIVE_URL] ?: "" }
+    val driveUrl: Flow<String> = context.dataStore.data.map { it[Keys.DRIVE_URL] ?: DEFAULT_DRIVE_URL }
     val driveEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DRIVE_ENABLED] ?: false }
     val micDeviceId: Flow<Int> = context.dataStore.data.map { it[Keys.MIC_DEVICE_ID] ?: -1 }
     val micAuto: Flow<Boolean> = context.dataStore.data.map { it[Keys.MIC_AUTO] ?: true }

@@ -16,13 +16,15 @@ class Repository(context: Context) {
     private val uploader = DriveUploader(context, uploadQueueDao)
 
     val equipment: Flow<List<EquipmentEntity>> = equipmentDao.observeAll()
+    val deletedEquipment: Flow<List<EquipmentEntity>> = equipmentDao.observeDeleted()
     val records: Flow<List<MeasurementRecordEntity>> = recordDao.observeAll()
     val preferences = prefs
 
     suspend fun getEquipment(id: Long) = equipmentDao.getById(id)
     suspend fun saveEquipment(entity: EquipmentEntity) = equipmentDao.insert(entity)
     suspend fun updateEquipment(entity: EquipmentEntity) = equipmentDao.update(entity)
-    suspend fun deleteEquipment(entity: EquipmentEntity) = equipmentDao.delete(entity)
+    suspend fun deleteEquipment(entity: EquipmentEntity) = equipmentDao.softDelete(entity.id)
+    suspend fun restoreEquipment(entity: EquipmentEntity) = equipmentDao.restore(entity.id)
 
     suspend fun saveRecord(record: MeasurementRecordEntity): Long {
         val id = recordDao.insert(record)

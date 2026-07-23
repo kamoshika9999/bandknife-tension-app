@@ -36,6 +36,10 @@ for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
 @rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 set DEFAULT_JVM_OPTS=-Dfile.encoding=UTF-8 "-Xmx64m" "-Xms64m"
 
+@rem Kotlin DSL / Gradle do not support running on JDK 22+ yet. Prefer a compatible JDK.
+call "%APP_HOME%\resolve-java-home.bat"
+if defined GRADLE_RESOLVED_JAVA_HOME set "JAVA_HOME=%GRADLE_RESOLVED_JAVA_HOME%"
+
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome
 

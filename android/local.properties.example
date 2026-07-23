@@ -1,0 +1,5 @@
+# Copy to local.properties and adjust paths for your machine.
+sdk.dir=C\:\\Users\\YourName\\AppData\\Local\\Android\\Sdk
+
+# Optional: force the JDK used by Gradle (recommended when JAVA_HOME points to JDK 22+).
+# java.home=C\:\\Program Files\\Eclipse Adoptium\\jdk-21.0.11.10-hotspot
