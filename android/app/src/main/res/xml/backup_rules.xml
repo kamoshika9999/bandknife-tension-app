@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  暗号化された使用者情報はバックアップしない。
+  復号鍵は端末のキーストアにあり復元先には無いため、持ち出しても開けない。
+  中身を復元できないまま残ると、原因の分からないサインアウトになる。
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="user_credential.xml" />
+</full-backup-content>

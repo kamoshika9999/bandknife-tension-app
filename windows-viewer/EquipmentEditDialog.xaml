@@ -1,0 +1,99 @@
+<Window x:Class="BandKnifeViewer.EquipmentEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="設備の編集"
+        Height="620" Width="480"
+        MinHeight="500" MinWidth="420"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BgBrush}"
+        FontFamily="Yu Gothic UI, Meiryo UI, Segoe UI"
+        ResizeMode="CanResize">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="TitleText" Grid.Row="0" Style="{StaticResource SectionTitle}" Margin="0,0,0,16"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="設備名" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                <TextBox x:Name="NameBox" Margin="0,0,0,12"/>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="幅 (mm)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="WidthBox" TextChanged="DimensionBox_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="板厚 (mm)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="ThicknessBox" TextChanged="DimensionBox_TextChanged"/>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="単位質量 (kg/m)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                <TextBox x:Name="MassBox" Margin="0,0,0,12"/>
+
+                <TextBlock Text="スパン長 (m)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                <TextBox x:Name="SpanBox" Margin="0,0,0,12"/>
+
+                <TextBlock Text="標準張力 (N)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                <TextBox x:Name="StandardBox" Margin="0,0,0,12"/>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="規格下限 (N)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="LowerBox"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="規格上限 (N)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="UpperBox"/>
+                    </StackPanel>
+                </Grid>
+
+                <CheckBox x:Name="UseHzCheck" Content="周波数（Hz）で判定する"
+                          Margin="0,0,0,8" Checked="UseHzCheck_Changed" Unchecked="UseHzCheck_Changed"/>
+
+                <StackPanel x:Name="HzPanel" Visibility="Collapsed">
+                    <TextBlock Text="標準周波数 (Hz)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="StandardHzBox" Margin="0,0,0,12"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="規格下限 (Hz)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="HzLowerBox"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="規格上限 (Hz)" Style="{StaticResource CaptionText}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="HzUpperBox"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <TextBlock x:Name="ErrorText" Foreground="{StaticResource NgTextBrush}" FontSize="13"
+                           Margin="0,4,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="キャンセル" Click="Cancel_Click" Margin="0,0,8,0" MinWidth="96"/>
+            <Button Content="保存" Click="Save_Click" Style="{StaticResource AccentButton}" MinWidth="96"/>
+        </StackPanel>
+    </Grid>
+</Window>

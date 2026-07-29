@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>バンドナイフ張力計 操作マニュアル</title>
+<style>
+body { font-family: sans-serif; font-size: 15px; line-height: 1.75; color: #1a1a2e; margin: 0; padding: 14px 14px 40px; background: #fdfdfe; }
+h1 { font-size: 22px; border-bottom: 3px solid #1565c0; padding-bottom: 8px; color: #0d47a1; }
+h2 { font-size: 19px; color: #0d47a1; border-left: 6px solid #1565c0; padding-left: 10px; margin-top: 1.8em; }
+h3 { font-size: 16px; color: #1565c0; margin-top: 1.5em; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 10px 0; }
+th { background: #e3f0fb; color: #0d47a1; text-align: left; }
+th, td { border: 1px solid #b9cfe4; padding: 5px 8px; }
+code { background: #eef2f7; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+pre { background: #eef2f7; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 4px solid #ff9800; background: #fff8ec; padding: 8px 14px; margin: 10px 0; }
+img { max-width: 100%; height: auto; border: 1px solid #ccd6e0; border-radius: 10px; }
+figure { margin: 12px 0; text-align: center; }
+figcaption, .cap { display: block; font-size: 12px; color: #555; margin-top: 5px; text-align: center; }
+/* PDF用の横並びレイアウトはスマホでは縦積みにする */
+table.side, table.side tbody, table.side tr, table.side td { display: block; width: 100%; border: none; background: none; padding: 0; box-sizing: border-box; }
+table.side td.side-img { text-align: center; margin-bottom: 8px; }
+table.side td.side-img img { width: 230px; max-width: 70%; }
+table.inner { display: table; width: 100%; }
+table.inner tr { display: table-row; }
+table.inner th, table.inner td { display: table-cell; border: 1px solid #b9cfe4; padding: 5px 8px; }
+table.figs { display: table; width: auto; margin: 12px auto; }
+table.figs tr { display: table-row; }
+table.figs td { display: table-cell; border: none; background: none; padding: 2px 6px; text-align: center; vertical-align: top; }
+table.figs img { width: 100%; }
+/* 広告ページ要素 */
+.promo-catch { font-size: 21px; font-weight: bold; color: #0d47a1; text-align: center; line-height: 1.45; margin: 14px 0 6px; }
+.promo-lead { text-align: center; font-size: 14px; color: #37474f; margin: 0 8px 10px; }
+table.promo, table.promo tbody, table.promo tr, table.promo td { display: block; width: 100%; border: none; box-sizing: border-box; }
+table.promo td { background: #eaf3fc; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; line-height: 1.55; }
+table.promo .pt { display: block; font-size: 15px; font-weight: bold; color: #0d47a1; margin-bottom: 3px; }
+table.promo.stats { display: table; width: 100%; border-collapse: separate; border-spacing: 6px; }
+table.promo.stats tbody { display: table-row-group; }
+table.promo.stats tr { display: table-row; }
+table.promo.stats td { display: table-cell; width: 33%; background: #0d47a1; color: #fff; text-align: center; padding: 8px 4px; margin: 0; }
+table.promo.stats .num { display: block; font-size: 22px; font-weight: bold; line-height: 1.2; }
+table.promo.stats .unit { font-size: 10px; opacity: .85; }
+.promo-flow { text-align: center; background: #fff3e0; border-radius: 12px; padding: 10px 12px; font-size: 13px; color: #5d4037; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h1>バンドナイフ張力計 操作マニュアル</h1>
+<p class="promo-catch">叩いて、はかる。<br>スマホ1台で、刃の張力管理を。</p><p class="promo-lead">専用の張力計はもういりません。バンドナイフを軽く5回叩くだけで、音から張力を自動計算。誰が測っても、同じ結果。</p><table class="promo stats">
+<tr>
+<td><span class="num">約1分</span><span class="unit">1回の測定にかかる時間</span></td>
+<td><span class="num">5回</span><span class="unit">叩くだけの簡単操作</span></td>
+<td><span class="num">0円</span><span class="unit">追加の測定器・専用ハード</span></td>
+</tr>
+</table><table class="promo">
+<tr>
+<td><span class="pt">測るのは、いつものスマホ</span>マイクで打撃音を拾い、固有振動数から張力を自動計算。工具箱に測定器を増やす必要はありません。</td>
+<td><span class="pt">その場で合否がわかる</span>設備ごとに登録した規格範囲と比べて、<b>OK / 要調整</b> を大きな文字で即表示。判断に迷いません。</td>
+<td><span class="pt">人による差が出ない</span>張力計の当て方や読み取りのクセとは無縁。叩く位置さえ守れば、新人もベテランも同じ値になります。</td>
+</tr>
+<tr>
+<td><span class="pt">記録は自動でクラウドへ</span>測定したそばから Google ドライブに自動保存。転記ミスも、記録のつけ忘れもなくなります。</td>
+<td><span class="pt">事務所のPCで推移がみえる</span>付属の Windows ビューアで、設備ごとの張力推移をグラフ表示。刃の劣化傾向や調整時期がひと目でわかります。</td>
+<td><span class="pt">使う人に合わせた3モード</span>現場向けの「シンプル」、品質管理向けの「アドバンス」、管理者向けの「詳細」。必要な情報だけを表示します。</td>
+</tr>
+<tr>
+<td><span class="pt">ミスした打撃は自動で除外</span>二重打撃・弱すぎる打撃・倍音のかぶりを品質チェックで検出。有効な打撃だけを集計します。</td>
+<td><span class="pt">騒がしい工場でも</span>打撃検出感度は3段階＋微調整に対応。外付けピンマイクにも切り替えられます。</td>
+<td><span class="pt">設備は何台でも登録可能</span>刃の寸法・スパン長・規格範囲を設備ごとに保存。複製機能で同型機の追加も一瞬です。</td>
+</tr>
+</table><p class="promo-flow"><b>現場で叩く → クラウドに自動記録 → 事務所で推移を確認。</b><br>張力管理の一連の流れが、このシステムひとつで完結します。</p><h2>1. このシステムでできること</h2>
+<p>バンドナイフ（帯刃）のスパン中央を軽く叩き、その音をスマートフォンのマイクで拾って固有振動数を検出し、刃の張力（N）を自動計算するシステムです。専用の張力計を使わずに、日常点検として誰でも同じ方法で張力を管理できます。</p>
+<h3>システム構成</h3>
+<table>
+<thead>
+<tr>
+<th>成果物</th>
+<th>役割</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>バンドナイフ張力計.apk</code></td>
+<td>Android 測定アプリ。叩いた音から張力を算出し、合否判定・記録を行う</td>
+</tr>
+<tr>
+<td><code>drive-upload.gs</code></td>
+<td>Google Apps Script。測定記録を Google ドライブへ自動保存する</td>
+</tr>
+<tr>
+<td><code>バンドナイフ張力ビューア.exe</code></td>
+<td>Windows 閲覧ソフト。PC で履歴一覧と推移グラフを表示する</td>
+</tr>
+</tbody></table>
+<p><strong>測定（スマホ）→ 自動アップロード（Google ドライブ）→ 閲覧・分析（PC）</strong> という流れで、現場の測定値が自動的に事務所の PC から確認できるようになります。</p>
+<h3>3つの操作モード</h3>
+<p>アプリは利用者に合わせて 3 つのモードを切り替えられます（画面上部のボタン、または詳細モードの「その他」タブ）。</p>
+<table>
+<thead>
+<tr>
+<th>モード</th>
+<th>想定ユーザー</th>
+<th>特徴</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>シンプル</strong></td>
+<td>現場作業者</td>
+<td>設備を選んで 5 回叩くだけ。結果は大きな数字と OK / 要調整 のみ</td>
+</tr>
+<tr>
+<td><strong>アドバンス</strong></td>
+<td>品質管理担当</td>
+<td>シンプルと同じ操作で、ヒストグラム・統計量（SD・CV・信頼区間）も表示</td>
+</tr>
+<tr>
+<td><strong>詳細</strong></td>
+<td>管理者</td>
+<td>単発/連続測定、設備管理、履歴管理、感度・マイク・連携などの全設定</td>
+</tr>
+</tbody></table>
+<h2>2. 毎日の測定はこれだけ（クイックスタート）</h2>
+<p>日常点検は次の 4 ステップで完了します。所要時間は 1 分程度です。</p>
+<blockquote>
+<p><strong>測定前に必ず機械を停止してください。</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>ステップ</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>アプリを起動する（シンプルモードで開きます）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>測定する設備のカードをタップする</td>
+</tr>
+<tr>
+<td>3</td>
+<td>刃のスパン中央を <strong>5 回</strong> 軽く叩く（マイクは刃から 1〜2 cm）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>結果（OK / 要調整）を確認し、<strong>「記録して終了」</strong> をタップする</td>
+</tr>
+</tbody></table>
+<table class="figs">
+<tr>
+<td><img src="images/01_simple_equipment_select.png" width="195"></td>
+<td><img src="images/02_simple_measuring.png" width="195"></td>
+<td><img src="images/03_simple_result.png" width="195"></td>
+</tr>
+<tr>
+<td class="cap">図1　設備を選ぶ</td>
+<td class="cap">図2　5回叩く</td>
+<td class="cap">図3　結果を確認して記録</td>
+</tr>
+</table><p><strong>要調整</strong> と表示されたら、張力を調整したうえでもう一度測定してください。詳しい操作は次章以降で説明します。</p>
+<h2>3. インストール（Android）</h2>
+<p>対応 OS: <strong>Android 8.0（API 26）以上</strong></p>
+<ol>
+<li><code>バンドナイフ張力計.apk</code> をスマートフォンにコピーします（USB ケーブル、共有ドライブなど）。</li>
+<li>スマートフォンの <strong>設定 → セキュリティ</strong> で「提供元不明のアプリのインストール」を許可します。</li>
+<li>ファイルアプリで APK をタップし、インストールします。</li>
+<li>初回起動時に <strong>使用者の登録</strong> 画面が出ます（次項）。</li>
+<li>続いて表示される <strong>マイクの使用許可</strong> で「許可」を選びます。</li>
+</ol>
+<blockquote>
+<p>マイク権限は測定に必須です。誤って拒否した場合は、Android の <strong>設定 → アプリ → バンドナイフ張力計 → 権限</strong> から許可し直してください。</p>
+</blockquote>
+<h3>初回起動時の使用者登録</h3>
+<p>設備の規格値を誰が変更したのかを記録に残すため、はじめに <strong>名前とパスワード</strong> を設定します。</p>
+<table>
+<thead>
+<tr>
+<th>状況</th>
+<th>選ぶもの</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>はじめて使う人</td>
+<td><strong>新しく登録</strong></td>
+<td>名前とパスワード（6 文字以上）を入力</td>
+</tr>
+<tr>
+<td>別の端末で登録済みの人</td>
+<td><strong>登録済みの使用者</strong></td>
+<td>同じ名前とパスワードでサインイン</td>
+</tr>
+</tbody></table>
+<ul>
+<li>パスワードは端末内に暗号化して保存されるので、<strong>2 回目以降は入力不要</strong> です。</li>
+<li>管理者が <strong>登録キー</strong> を設定している場合は、新規登録のときだけ登録キーの入力が必要です。管理者に確認してください。</li>
+<li>名前とパスワードは、あとから <strong>その他 → 使用者 → 名前・パスワードを変更</strong> で変えられます。</li>
+<li>測定するだけなら登録は必須ではありません（<strong>あとで設定</strong> を選べます）。設備の追加・変更をするときに求められます。</li>
+</ul>
+<blockquote>
+<p>端末を初期化したりアプリを入れ直したりすると、保存された情報は消えます。同じ名前とパスワードでサインインし直してください。パスワードを忘れた場合は管理者に連絡してください。</p>
+</blockquote>
+<h2>4. シンプルモード — 日常の定期測定</h2>
+<p>アプリ起動時の既定モードです。迷う要素をなくした、現場での定例チェック専用の画面です。</p>
+<h3>ステップ1: 設備を選ぶ</h3>
+<p>登録済みの設備がカードで一覧表示されます。カードには <strong>標準張力</strong> と <strong>規格範囲</strong> が表示されているので、測定対象をタップしてください。</p>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/01_simple_equipment_select.png" width="220">
+<span class="cap">図1（再掲）　設備選択画面</span>
+</td>
+<td>
+<table class="inner">
+<tr><th>画面下部のボタン</th><th>機能</th></tr>
+<tr><td>設備管理</td><td>設備の追加・編集・複製・削除</td></tr>
+<tr><td>スペック設定</td><td>選択中設備の寸法・張力規格の変更（7章参照）</td></tr>
+</table>
+<p>カードをタップした時点で測定待機に入ります。誤って選んだ場合は画面上部のモード切替ボタンでいったん戻れます。</p>
+</td>
+</tr>
+</table><h3>ステップ2: 刃を5回叩く</h3>
+<p>設備を選ぶと自動的に測定待機になります。「刃の中央を5回軽く叩いてください」と表示されたら測定開始です。</p>
+<ol>
+<li>マイク（スマホ下部）を刃から <strong>1〜2 cm</strong> 離して構えます。</li>
+<li><strong>スパン（自由振動区間）の中央</strong> をプラスチックの柄や指の腹で軽く叩きます。</li>
+<li>叩くたびにカウンター（<code>1 / 5</code> → <code>2 / 5</code> …）が進みます。</li>
+</ol>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/02_simple_measuring.png" width="220">
+<span class="cap">図2（再掲）　測定中の画面</span>
+</td>
+<td>
+<table class="inner">
+<tr><th>画面の表示</th><th>意味</th></tr>
+<tr><td>カウンター n / 5</td><td>有効と判定された打撃の回数</td></tr>
+<tr><td>打撃レベル</td><td>叩いた強さ。適正範囲は 15〜95%。バーが範囲内に収まるように叩く</td></tr>
+<tr><td>赤色の警告</td><td>「周囲が騒がしいため…」など。測定精度に影響する状況の注意喚起</td></tr>
+</table>
+<p>うまくカウントされないときは 8 章「正しい叩き方と測定のコツ」を参照してください。</p>
+</td>
+</tr>
+</table><h3>ステップ3: 結果を確認して記録する</h3>
+<p>5 回の測定が完了すると、自動的に結果画面に切り替わります。</p>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/03_simple_result.png" width="220">
+<span class="cap">図3（再掲）　シンプルモードの結果画面（規格内の例）</span>
+</td>
+<td>
+<table class="inner">
+<tr><th>表示</th><th>意味</th></tr>
+<tr><td>大きな数字（例: 160 N）</td><td>5 回の測定の平均張力</td></tr>
+<tr><td><b>OK</b>（緑）</td><td>規格範囲内。このまま使用できます</td></tr>
+<tr><td><b>要調整</b>（赤）</td><td>規格範囲外。張力を調整して再測定してください</td></tr>
+<tr><td>標準 160 N に対して +0 N</td><td>標準張力との差</td></tr>
+</table>
+<p><b>「記録して終了」</b>をタップすると履歴に保存され、設備選択画面に戻ります。自動アップロードが ON の場合は Google ドライブにも送信されます（9 章参照）。</p>
+</td>
+</tr>
+</table><h2>5. アドバンスモード — ばらつきの確認</h2>
+<p>操作の流れはシンプルモードと同じです（設備を選ぶ → 5 回叩く → 記録）。結果画面に <strong>統計情報とグラフ</strong> が追加されるため、測定のばらつきや刃の状態をより詳しく評価できます。</p>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/04_advance_result.png" width="220">
+<span class="cap">図4　アドバンスモードの結果画面</span>
+</td>
+<td>
+<table class="inner">
+<tr><th>表示項目</th><th>説明</th></tr>
+<tr><td>ヒストグラム</td><td>5 回の測定値の分布。ばらつきが大きいと山が広がる</td></tr>
+<tr><td>平均・SD・CV</td><td>平均張力、標準偏差、変動係数。<b>CV が数 % 以内</b>なら安定した測定</td></tr>
+<tr><td>95%CI</td><td>平均値の 95% 信頼区間</td></tr>
+<tr><td>余裕度</td><td>規格限界までの余裕（N）。緑なら安全側、赤なら規格逸脱</td></tr>
+<tr><td>個別値</td><td>5 回それぞれの張力値</td></tr>
+</table>
+<p>こんなときに使います。</p>
+<ul>
+<li>定期測定で<b>要調整が出た原因</b>を調べたいとき（1 回だけ外れたのか、全体がずれたのか）</li>
+<li>刃の交換直後や張力調整後に、<b>測定が安定しているか</b>確かめたいとき</li>
+<li>品質記録として<b>ばらつきも含めて</b>残したいとき</li>
+</ul>
+</td>
+</tr>
+</table><h2>6. 詳細モード — 管理者向け機能</h2>
+<p>画面下部のタブ（<strong>測定 / 設備 / 履歴 / その他</strong>）で全機能にアクセスできます。</p>
+<h3>6-1. 測定タブ</h3>
+<p>回数を固定しない自由な測定ができます。</p>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/05_detail_measure.png" width="220">
+<span class="cap">図5　詳細モードの測定タブ</span>
+</td>
+<td>
+<table class="inner">
+<tr><th>操作</th><th>説明</th></tr>
+<tr><td>設備選択</td><td>ドロップダウンから測定対象を選ぶ</td></tr>
+<tr><td>スペック設定</td><td>選択中設備の寸法・規格を直接編集</td></tr>
+<tr><td>単発 / 連続</td><td>1 回だけ測定するか、複数回連続で測定するか</td></tr>
+<tr><td>開始 / 停止</td><td>測定の開始と中断</td></tr>
+</table>
+<p>測定中は検出した<b>周波数（Hz）</b>と<b>張力（N）</b>がリアルタイムで表示され、完了後に履歴へ記録できます。</p>
+</td>
+</tr>
+</table><h3>6-2. 設備タブ（設備管理）</h3>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/06_detail_equipment.png" width="220">
+<span class="cap">図6　設備管理画面</span>
+</td>
+<td>
+<table class="inner">
+<tr><th>ボタン</th><th>機能</th></tr>
+<tr><td>設備を追加</td><td>新しい設備を登録する（7 章参照）</td></tr>
+<tr><td>削除済み設備</td><td>削除した設備の復元・完全削除</td></tr>
+<tr><td>編集 / スペック</td><td>設備情報・寸法規格の変更</td></tr>
+<tr><td>複製</td><td>同型機を登録するときに便利なコピー機能</td></tr>
+<tr><td>削除</td><td>設備を削除（履歴は残ります）</td></tr>
+</table>
+</td>
+</tr>
+</table><h3>6-3. 履歴タブ</h3>
+<p>過去の測定記録を新しい順に一覧表示します。</p>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/07_detail_history.png" width="220">
+<span class="cap">図7　履歴画面</span>
+</td>
+<td>
+<ul>
+<li><b>コメント</b> … 「刃交換後の初回測定」などのメモを付けて保存できます</li>
+<li><b>ロック（鍵アイコン）</b> … 記録を保護し、誤った編集・削除を防ぎます</li>
+<li><b>削除（ゴミ箱アイコン）</b> … 打ち損じなど不要な記録を削除します</li>
+</ul>
+</td>
+</tr>
+</table><h3>6-4. その他タブ（設定）</h3>
+<p>モード切替と各種設定をまとめたタブです。</p>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/08_detail_settings.png" width="220">
+<span class="cap">図8　設定画面</span>
+</td>
+<td>
+<table class="inner">
+<tr><th>設定項目</th><th>説明</th></tr>
+<tr><td>kgf 表示</td><td>張力の単位を N から kgf に切り替える</td></tr>
+<tr><td>打撃検出感度</td><td>高 / 標準 / 低 の 3 段階＋スライダー微調整。騒音環境では「低」へ</td></tr>
+<tr><td>マイク選択</td><td>内蔵マイクと外付けマイクの切り替え（自動選択も可）</td></tr>
+<tr><td>Drive アップロード URL</td><td>Google Apps Script のウェブアプリ URL（9 章参照）</td></tr>
+<tr><td>自動アップロード</td><td>ON にすると記録のたびに自動送信</td></tr>
+<tr><td>テスト送信</td><td>ドライブ連携の疎通確認</td></tr>
+</table>
+</td>
+</tr>
+</table><h2>7. 設備の登録とスペック設定</h2>
+<h3>設備の設定は全端末で共有されます</h3>
+<p>設備の規格値は Google ドライブで一元管理します。<strong>ドライブの設備マスターに載っていない設備では測定できません。</strong> 古い規格値のまま合否を出して、不良を良品と判定する事故を防ぐためです。</p>
+<table>
+<thead>
+<tr>
+<th>状態</th>
+<th>画面の表示</th>
+<th>測定</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ドライブ未登録の設備</td>
+<td>設備カードに「ドライブ未登録」バッジ、選択できない</td>
+<td>その設備のみ不可</td>
+</tr>
+<tr>
+<td>最後の接続確認から 5 日以上</td>
+<td>「あと N 日で測定できなくなります」</td>
+<td>可</td>
+</tr>
+<tr>
+<td>最後の接続確認から 7 日以上</td>
+<td>「測定できません」＋「今すぐ確認」</td>
+<td>すべて不可</td>
+</tr>
+</tbody></table>
+<p><strong>7 日ごとに電波の届く場所でアプリを開く</strong> 運用が前提です。手動で確認する場合は <strong>その他 → 設備マスターの共有 → 今すぐ確認</strong> をタップしてください。</p>
+<h3>設備の新規登録</h3>
+<p><strong>詳細モード → 設備タブ → 設備を追加</strong>（またはシンプルモード下部の「設備管理」）から登録します。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>説明</th>
+<th>入力例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>設備名</td>
+<td>識別用の名前</td>
+<td>ペフ用スライサー1号</td>
+</tr>
+<tr>
+<td>幅 / 厚み（mm）</td>
+<td>刃の断面寸法。単位質量 m の自動計算に使用</td>
+<td>86 / 1.25</td>
+</tr>
+<tr>
+<td>スパン長 S（m）</td>
+<td>自由振動区間（支持点間）の長さ</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>標準張力（N）</td>
+<td>目標とする張力</td>
+<td>160</td>
+</tr>
+<tr>
+<td>規格下限 / 上限（N）</td>
+<td>OK / 要調整 の判定範囲</td>
+<td>150 / 180</td>
+</tr>
+</tbody></table>
+<h3>スペック設定画面</h3>
+<p>登録済み設備の寸法・規格は、スペック設定画面でいつでも変更できます。</p>
+<table class="side">
+<tr>
+<td class="side-img">
+<img src="images/09_spec_settings.png" width="220">
+<span class="cap">図9　スペック設定画面</span>
+</td>
+<td>
+<ul>
+<li>幅・厚みを変更すると<b>単位質量 m（kg/m）が自動再計算</b>されます</li>
+<li><b>Hz 管理モード</b>を ON にすると、張力（N）ではなく周波数（Hz）の範囲で合否判定できます</li>
+<li>変更は<b>保存</b>をタップした時点で反映されます</li>
+</ul>
+<p>スパン長 S は計算結果に 2 乗で効きます（付録 A 参照）。<b>支持点間の実寸を正確に</b>入力してください。</p>
+</td>
+</tr>
+</table><blockquote>
+<p>設備の追加・変更・削除には <strong>使用者のサインインが必要</strong> です。未設定の場合は画面にその案内が出るので、そこから登録してください（3 章参照）。</p>
+</blockquote>
+<h3>変更を全端末へ反映する</h3>
+<p>端末で設備を変更しただけでは、他の端末には反映されません。<strong>その設備は、ドライブへ登録し直すまで測定に使えなくなります。</strong></p>
+<ol>
+<li>設備を追加・変更する</li>
+<li><strong>その他 → 設備マスターの共有 → ドライブへ登録</strong> をタップ</li>
+<li>確認画面の内容（更新者名・件数）を見て実行する</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>出たメッセージ</th>
+<th>意味と対処</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>「〜件の設備が全端末から消えます」</td>
+<td>消える設備名を確認し、問題なければもう一度実行する</td>
+</tr>
+<tr>
+<td>「他の人が先に設備マスターを更新しました」</td>
+<td><strong>今すぐ確認</strong> で取り込み直してから、変更をやり直す</td>
+</tr>
+<tr>
+<td>「規格が正しくありません」</td>
+<td>規格の下限・上限、単位質量、スパン長を見直す</td>
+</tr>
+</tbody></table>
+<p>各端末は、アプリ起動時に自動で最新の設備マスターを取り込みます。</p>
+<h3>誰がいつ変更したかを確認する</h3>
+<p><strong>その他 → 設備マスターの更新履歴 → 履歴を読み込む</strong> で、世代（第 N 版）ごとの更新者・日時・変更内容の一覧が見られます。ドライブ側では、スプレッドシートの <strong>「設備マスター履歴」</strong> シートで同じ内容を確認できます。</p>
+<h2>8. 正しい叩き方と測定のコツ</h2>
+<p>測定精度は「叩き方」でほぼ決まります。次の表を目安にしてください。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>推奨 ○</th>
+<th>避ける ×</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>道具</td>
+<td>プラスチックの柄、指の腹</td>
+<td>金属ハンマー（高調波で誤検出しやすい）</td>
+</tr>
+<tr>
+<td>叩く位置</td>
+<td>スパンの中央</td>
+<td>端・支持点（プーリー）付近</td>
+</tr>
+<tr>
+<td>強さ</td>
+<td>軽く「ポン」と弾く。打撃レベル 15〜95%</td>
+<td>強打・こすり付け</td>
+</tr>
+<tr>
+<td>間隔</td>
+<td>1 回ずつはっきり間を空ける</td>
+<td>連打（二重打撃と判定される）</td>
+</tr>
+<tr>
+<td>マイク</td>
+<td>刃から 1〜2 cm</td>
+<td>刃に接触させる／遠すぎる</td>
+</tr>
+</tbody></table>
+<h3>安全上の注意</h3>
+<blockquote>
+<p><strong>必ず機械を停止し、刃が完全に止まってから測定してください。</strong></p>
+</blockquote>
+<h3>画面メッセージへの対処</h3>
+<table>
+<thead>
+<tr>
+<th>メッセージ</th>
+<th>対処</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>打撃が弱すぎます</td>
+<td>もう少し強く叩く。改善しなければ感度を「高」へ</td>
+</tr>
+<tr>
+<td>打撃が強すぎます</td>
+<td>叩く力を弱める</td>
+</tr>
+<tr>
+<td>周囲が騒がしいため測定精度が落ちる可能性があります</td>
+<td>周囲の機械を止める・静かな時間帯に測る・感度を「低」へ</td>
+</tr>
+<tr>
+<td>二重打撃を検出</td>
+<td>1 回ずつ間隔を空けて叩き直す</td>
+</tr>
+</tbody></table>
+<p>騒音の大きい工場では、<strong>有線ピンマイク</strong> を刃の近くに固定する方法も有効です（設定 → マイク選択）。</p>
+<h2>9. Google ドライブ連携</h2>
+<p>測定記録を Google ドライブへ自動保存すると、事務所の PC からリアルタイムに履歴を確認できます。</p>
+<h3>仕組み</h3>
+<pre><code>スマホ（測定・記録・設備設定）
+   │  自動アップロード / 設備マスターの取り込み（HTTPS）
+   ▼
+Google Apps Script（drive-upload.gs）
+   │  追記・更新
+   ▼
+マイドライブ/バンドナイフ張力測定/
+   ├─ 測定記録スプレッドシート（記録・設備マスター・履歴・使用者）
+   ├─ records.csv           ←  Windows ビューアが読む
+   ├─ equipment.json        ←  設備マスター（全端末の正データ）
+   ├─ equipment-history.json ← 更新履歴
+   └─ users.json            ←  使用者一覧
+</code></pre>
+<h3>セットアップ手順（初回のみ・管理者）</h3>
+<ol>
+<li><a href="https://script.google.com">script.google.com</a> で新規プロジェクトを作り、<code>drive-upload.gs</code> の内容を貼り付けます。</li>
+<li><strong>デプロイ → 新しいデプロイ → ウェブアプリ</strong> を選び、「全員がアクセス可能」でデプロイして URL をコピーします。</li>
+<li>アプリの <strong>詳細モード → その他 → Drive アップロード URL</strong> に URL を貼り付けます。</li>
+<li><strong>自動アップロード</strong> を ON にし、<strong>テスト送信</strong> で「成功」と表示されることを確認します。</li>
+</ol>
+<p>初回実行時、マイドライブに <strong>「バンドナイフ張力測定」</strong> フォルダが自動作成されます。ネットワーク圏外で測定した記録は端末に蓄積され、次回接続時にまとめて再送されます。</p>
+<blockquote>
+<p>既に古いスクリプトで運用している場合も、<code>drive-upload.gs</code> を貼り直して <strong>再デプロイ</strong> してください。古いままだと「ドライブのスクリプトが最新ではありません」と表示され、設備マスターと使用者管理が使えません。</p>
+</blockquote>
+<h3>使用者登録を絞る（推奨・管理者）</h3>
+<p>ウェブアプリの URL を知っている人は、既定では誰でも使用者登録でき、設備の規格値を書き換えられます。Apps Script の <strong>プロジェクトの設定 → スクリプト プロパティ</strong> に次を追加すると、登録に合言葉が必要になります。</p>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>値</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>REGISTRATION_KEY</code></td>
+<td>管理者だけが知る任意の文字列</td>
+</tr>
+</tbody></table>
+<p>設定した文字列を、新しく使う人に伝えてください。登録済みの人のサインインには影響しません。</p>
+<h3>設備マスターと使用者の管理場所</h3>
+<table>
+<thead>
+<tr>
+<th>ファイル / シート</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>equipment.json</code> / 「設備マスター」シート</td>
+<td>現在の設備設定。<strong>手で編集しないでください</strong>（失うと全端末が測定不能になります）</td>
+</tr>
+<tr>
+<td><code>equipment-history.json</code> / 「設備マスター履歴」シート</td>
+<td>誰がいつ何を変えたか</td>
+</tr>
+<tr>
+<td><code>users.json</code> / 「使用者」シート</td>
+<td>登録済みの使用者。パスワードそのものは保存されません</td>
+</tr>
+</tbody></table>
+<h2>10. Windows 閲覧ソフト（ビューア）</h2>
+<p>PC で測定履歴の一覧・推移グラフ・CSV 出力ができるアプリケーションです。ランタイムのインストールは不要で、<code>バンドナイフ張力ビューア.exe</code> 単体で動作します。</p>
+<figure>
+<img src="images/10_windows_viewer.png" width="680">
+<figcaption>図10　Windows ビューアのメイン画面</figcaption>
+</figure><h3>セットアップ</h3>
+<ol>
+<li>PC に <strong>Google Drive for Desktop</strong> をインストールし、マイドライブを同期します。</li>
+<li><code>バンドナイフ張力ビューア.exe</code> をダブルクリックして起動します。</li>
+<li>データフォルダ（<code>マイドライブ\バンドナイフ張力測定</code>）は自動検出されます。見つからない場合は <strong>「フォルダ選択」</strong> で <code>records.csv</code> のあるフォルダを指定してください。</li>
+</ol>
+<h3>画面の見かた</h3>
+<table>
+<thead>
+<tr>
+<th>エリア</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>最新測定値（左上）</td>
+<td>設備ごとの最新の張力・合否・測定日時</td>
+</tr>
+<tr>
+<td>張力の推移（右上）</td>
+<td>時系列グラフ。右上のドロップダウンで設備を切替。破線は標準張力</td>
+</tr>
+<tr>
+<td>測定履歴（下）</td>
+<td>全記録のテーブル。設備での絞り込みが可能。NG 行は色付き表示</td>
+</tr>
+</tbody></table>
+<h3>ツールバー</h3>
+<table>
+<thead>
+<tr>
+<th>ボタン</th>
+<th>機能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>フォルダ選択</td>
+<td>データフォルダを手動で指定する</td>
+</tr>
+<tr>
+<td>CSV 出力</td>
+<td>表示中のデータを CSV ファイルとして保存する（Excel での分析用）</td>
+</tr>
+<tr>
+<td>更新</td>
+<td>最新のデータを読み込み直す</td>
+</tr>
+</tbody></table>
+<h2>11. こんなときは（トラブルシューティング）</h2>
+<table>
+<thead>
+<tr>
+<th>症状</th>
+<th>確認すること</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>叩いてもカウントが進まない</td>
+<td>マイク権限が許可されているか／打撃レベルが 15% 以上あるか／感度を「高」にする</td>
+</tr>
+<tr>
+<td>測定が始まらない</td>
+<td>設備を選択したか／マイクを他のアプリが使用していないか</td>
+</tr>
+<tr>
+<td>張力の値がばらつく</td>
+<td>叩く位置がスパン中央か／金属で叩いていないか／周囲の騒音</td>
+</tr>
+<tr>
+<td>値が明らかにおかしい</td>
+<td>スペック設定の幅・厚み・スパン長が実寸どおりか（7 章）</td>
+</tr>
+<tr>
+<td>設備が一覧に出ない</td>
+<td>設備管理で登録済みか／「削除済み設備」に入っていないか</td>
+</tr>
+<tr>
+<td>設備が選べず「ドライブ未登録」と出る</td>
+<td>管理者が <strong>その他 → 設備マスターの共有 → ドライブへ登録</strong> を実行したか（7 章）</td>
+</tr>
+<tr>
+<td>「測定できません」と出て何も測れない</td>
+<td>電波の届く場所で <strong>その他 → 設備マスターの共有 → 今すぐ確認</strong> をタップする（7 章）</td>
+</tr>
+<tr>
+<td>設備を編集しようとするとサインインを求められる</td>
+<td>名前とパスワードを設定する（3 章）。忘れた場合は管理者に連絡</td>
+</tr>
+<tr>
+<td>「〜は登録されていません」と出る</td>
+<td>別の端末で名前を変更した可能性があります。新しい名前でサインインし直してください</td>
+</tr>
+<tr>
+<td>「ドライブのスクリプトが最新ではありません」</td>
+<td>管理者が <code>drive-upload.gs</code> を貼り直して再デプロイする（9 章）</td>
+</tr>
+<tr>
+<td>ドライブに記録が上がらない</td>
+<td>アップロード URL の設定／自動アップロード ON／ネットワーク接続／「テスト送信」の結果</td>
+</tr>
+<tr>
+<td>PC のビューアにデータが出ない</td>
+<td>Google Drive for Desktop の同期が完了しているか／フォルダ内に <code>records.csv</code> があるか</td>
+</tr>
+<tr>
+<td>ビューアのグラフが更新されない</td>
+<td>「更新」ボタンを押す／スマホ側のアップロードが完了しているか</td>
+</tr>
+</tbody></table>
+<p>解決しない場合は、システム管理者へ「症状・設備名・測定日時・画面の写真」を添えて連絡してください。</p>
+<h2>付録A: 測定の原理</h2>
+<p>弦（両端固定の張られた部材）の固有振動数と張力の関係式を利用しています。</p>
+<p style="text-align:center; font-size: 14pt;"><strong><em>T</em> = 4 × <em>m</em> × <em>S</em>² × <em>f</em>²</strong></p><table>
+<thead>
+<tr>
+<th>記号</th>
+<th>意味</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><em>T</em></td>
+<td>張力（N）</td>
+<td>求めたい値</td>
+</tr>
+<tr>
+<td><em>m</em></td>
+<td>単位長さあたりの質量（kg/m）</td>
+<td>幅 × 厚み × 鋼の密度から自動計算</td>
+</tr>
+<tr>
+<td><em>S</em></td>
+<td>スパン長（m）</td>
+<td>支持点間の自由振動区間</td>
+</tr>
+<tr>
+<td><em>f</em></td>
+<td>1 次固有振動数（Hz）</td>
+<td>叩いた音を FFT 解析して検出</td>
+</tr>
+</tbody></table>
+<p>アプリは打撃音の周波数スペクトルから基本波を特定し、倍音（高調波）や二重打撃を品質チェックで除外したうえで張力を算出しています。</p>
+<p><em>本マニュアルは 2026年7月時点のアプリ v1.0.0 に基づいています。</em></p>
+
+</body>
+</html>

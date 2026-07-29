@@ -25,10 +25,11 @@ Set-Location "C:\システム開発\バンドナイフ張力測定\android"
 |---------|------|
 | `deploy.bat` | `deploy.ps1` を呼ぶラッパー（ASCII のみ） |
 | `deploy.ps1` | ビルド → 配布用 APK コピー → インストール |
+| `apk-paths.ps1` | 配布用 APK 名の生成（文字化け防止） |
 | `install-apk.bat` | `install-apk.ps1` を呼ぶラッパー |
 | `install-apk.ps1` | 既存 APK の実機インストールのみ |
 
-**`.bat` に日本語パスを書かない。** CMD は `バンドナイフ張力計.apk` を文字化けさせるため、コピーとパス解決は **必ず `.ps1`** で行う。
+**`.bat` / `.ps1` に日本語パスを直接書かない。** 配布用 APK 名は `apk-paths.ps1` の Unicode コードポイントで生成する（`バンドナイフ張力計.apk`）。
 
 ### 処理の流れ（deploy.ps1）
 

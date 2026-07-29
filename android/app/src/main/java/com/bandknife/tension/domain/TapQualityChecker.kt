@@ -12,9 +12,12 @@ data class TapAnalysis(
 )
 
 object TapQualityChecker {
-    private const val WEAK_RATIO = 0.15
-    private const val STRONG_RATIO = 0.95
+    const val WEAK_RATIO = 0.15
+    const val STRONG_RATIO = 0.95
     private const val HARMONIC_RATIO = 0.6
+
+    fun formatPercent(normalized: Double): Int =
+        (normalized * 100).toInt().coerceIn(0, 100)
 
     fun analyze(
         samples: ShortArray,
@@ -32,12 +35,15 @@ object TapQualityChecker {
             harmonicMagnitude > fundamentalMagnitude * HARMONIC_RATIO -> TapQuality.HARMONIC_DOMINANT
             else -> TapQuality.GOOD
         }
+        val pct = formatPercent(normalized)
+        val minPct = formatPercent(WEAK_RATIO)
+        val maxPct = formatPercent(STRONG_RATIO)
         val message = when (quality) {
-            TapQuality.GOOD -> "適正な打撃です"
-            TapQuality.TOO_WEAK -> "もう少し強く叩いてください"
-            TapQuality.TOO_STRONG -> "叩く力を弱めるか、マイクを少し離してください"
-            TapQuality.DOUBLE_HIT -> "跳ね返りで2回当たっています。軽く弾くように叩いてください"
-            TapQuality.HARMONIC_DOMINANT -> "スパンの中央を樹脂の柄などで叩いてください"
+            TapQuality.GOOD -> "打撃レベル ${pct}%（適正 ${minPct}〜${maxPct}%）"
+            TapQuality.TOO_WEAK -> "打撃レベル ${pct}%（目標 ${minPct}% 以上）"
+            TapQuality.TOO_STRONG -> "打撃レベル ${pct}%（${maxPct}% 以下に調整）"
+            TapQuality.DOUBLE_HIT -> "打撃レベル ${pct}% — 跳ね返りで2回当たっています。軽く弾くように叩いてください"
+            TapQuality.HARMONIC_DOMINANT -> "打撃レベル ${pct}% — スパンの中央を樹脂の柄などで叩いてください"
         }
         return TapAnalysis(quality, peakFrequency, normalized, message)
     }

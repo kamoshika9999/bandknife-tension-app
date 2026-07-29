@@ -13,6 +13,9 @@ interface RecordDao {
     @Query("SELECT * FROM measurement_records ORDER BY timestamp DESC")
     fun observeAll(): Flow<List<MeasurementRecordEntity>>
 
+    @Query("SELECT * FROM measurement_records ORDER BY timestamp DESC")
+    suspend fun getAll(): List<MeasurementRecordEntity>
+
     @Query("SELECT * FROM measurement_records WHERE equipmentId = :equipmentId ORDER BY timestamp DESC")
     fun observeByEquipment(equipmentId: Long): Flow<List<MeasurementRecordEntity>>
 

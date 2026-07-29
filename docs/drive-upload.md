@@ -41,6 +41,120 @@ Android アプリが HTTP POST で JSON データを送信すると、GAS が受
 | `FOLDER_NAME` | `バンドナイフ張力測定` | マイドライブに作成されるフォルダ名 |
 | `SPREADSHEET_NAME` | `張力記録` | スプレッドシートのファイル名 |
 | `CSV_NAME` | `records.csv` | CSV ファイル名（Windows ビューアが参照） |
+| `EQUIPMENT_NAME` | `equipment.json` | 設備マスター。端末はこれを唯一の正とする |
+| `EQUIPMENT_SHEET` | `設備マスター` | 人が中身を確認するためのシート名 |
+| `HISTORY_NAME` | `equipment-history.json` | 設備マスターの世代履歴（誰がいつ何を変えたか） |
+| `HISTORY_SHEET` | `設備マスター履歴` | 履歴を人が確認するためのシート名 |
+| `USERS_NAME` | `users.json` | 使用者の一覧とパスワードのハッシュ |
+| `USERS_SHEET` | `使用者` | 登録済みの使用者を人が確認するためのシート名（パスワードは書かない） |
+
+---
+
+## リクエストの種類
+
+POST は `action` フィールドで処理を振り分けます。`action` が無い場合は測定記録の追記として扱うため、旧バージョンのアプリからの送信もそのまま動きます。綴り違いや未対応の `action` はエラーを返します（測定記録として書き込むと記録が汚れるため）。
+
+設備マスターと履歴の**取得は GET** です。旧スクリプトが残っている端末が取得要求を送っても、測定記録に空行が書き込まれないようにするためです。
+
+| メソッド | `action` | 用途 | 呼び出し元 |
+|---------|----------|------|-----------|
+| POST | （なし）/ `appendRecord` | 測定記録を1件追記 | `DriveUploader` |
+| GET | `pullEquipment` | 設備マスターを取得 | `DriveSyncClient`（起動時・「今すぐ確認」） |
+| GET | `pullHistory` | 更新履歴の概要を取得 | `DriveSyncClient`（「履歴を読み込む」） |
+| POST | `pushEquipment` | 設備マスターを丸ごと置き換え | `DriveSyncClient`（「ドライブへ登録」） |
+| POST | `registerUser` | 使用者を新規登録 | `DriveSyncClient`（初回起動の登録） |
+| POST | `verifyUser` | 名前とパスワードを照合 | `DriveSyncClient`（サインイン・起動時の確認） |
+| POST | `updateUser` | 名前・パスワードを変更 | `DriveSyncClient`（使用者の変更） |
+
+### API 世代（`apiVersion`）
+
+すべての JSON 応答に `apiVersion`（現在 `2`）が入ります。アプリはこの値が期待より小さい場合、「ドライブのスクリプトが最新ではありません」と表示して処理を止めます。**スクリプトを更新したら必ず再デプロイしてください。**
+
+### `pullEquipment` のレスポンス
+
+```json
+{
+  "status": "ok",
+  "revision": 3,
+  "updatedAt": 1753600000000,
+  "updatedBy": "現場1号機",
+  "equipment": [
+    {
+      "uuid": "…", "name": "ペフ用スライサー1号",
+      "massPerMeter": 0.844, "spanMeters": 1.0,
+      "standardTension": 160, "specLower": 150, "specUpper": 180,
+      "useHzMode": false, "standardHz": 0, "specHzLower": 0, "specHzUpper": 0,
+      "widthMm": 86, "thicknessMm": 1.25, "density": 7850
+    }
+  ]
+}
+```
+
+### `pushEquipment`
+
+同じ形の `equipment` 配列に加えて、認証情報と衝突検出用の情報を送ります。
+
+| フィールド | 説明 |
+|-----------|------|
+| `name` / `secret` | 使用者の名前と、端末で導出した秘密値。登録済みでないと拒否されます |
+| `baseRevision` | 端末が取り込んだときの世代。現在の世代と食い違う場合は拒否します |
+| `confirmRemoval` | 設備が消える内容のとき、端末で確認済みなら `true` |
+
+拒否されるのは次の場合です。
+
+| 状況 | 応答 |
+|------|------|
+| 名前・パスワードが未登録／不一致 | `status: error`（`code` に `UNKNOWN_USER` / `BAD_PASSWORD`） |
+| `equipment` が空 | 全端末が測定不能になるため拒否 |
+| 単位質量・スパン・規格範囲が不正 | 何を測っても合格になる設備を作らないため拒否 |
+| `baseRevision` が現在と不一致 | 他の人の更新を消さないため拒否。取り込み直してやり直す |
+| 設備が消える内容で `confirmRemoval` が無い | `kind: confirmRemoval` と `removedNames` を返し、端末で確認を求める |
+
+成功すると世代が 1 つ進み、`equipment.json` の書き換え、`設備マスター` シートの更新、履歴の追記を行います。複数端末が同時に書き換えても壊れないよう、`LockService` で読み取りから書き込みまでを直列化しています。シートと履歴は「人が読むための写し」なので、そこで失敗しても正である JSON の整合は保ちます。
+
+---
+
+## 使用者の管理
+
+設備マスターを誰でも書き換えられないよう、`pushEquipment` は登録済みの使用者だけに許します。
+
+### パスワードの扱い
+
+```
+[Android 端末]
+  パスワード
+    │ PBKDF2-HMAC-SHA256（12万回、salt = 正規化した名前）
+    ▼
+  secret（端末に暗号化して保存。次回から入力不要）
+    │ HTTPS で送信
+    ▼
+[GAS]  sha256(利用者ごとの salt + secret) を users.json に保存
+```
+
+パスワードそのものは端末からも出ず、ドライブにも残りません。名前は NFKC 正規化して小文字にしたものを照合キー（`key`）に使い、表示用の名前（`name`）とは別に保存します。端末側の `PasswordHasher.nameKey()` と同じ規則です。
+
+### `registerUser` を登録キーで絞る
+
+ウェブアプリ URL は APK から取り出せるため、既定では URL を知っている人は誰でも使用者登録できます。Apps Script の **プロジェクトの設定 → スクリプト プロパティ** に `REGISTRATION_KEY` を設定すると、同じ文字列を `registrationKey` に添えた登録だけを受け付けます。サインインには影響しません。
+
+### 名前を変えたとき
+
+`updateUser` は照合キーを付け替えます。同じ名前でサインインしていた**他の端末は再サインインが必要**になります。過去の履歴に残った更新者名は当時のまま保持され、書き換えません（誰が更新したかの記録を後から変えないため）。
+
+---
+
+## 世代管理と履歴
+
+`pushEquipment` のたびに `revision` が 1 つ進み、`equipment-history.json` と `設備マスター履歴` シートに次を残します。
+
+| 項目 | 内容 |
+|------|------|
+| 日時・リビジョン・更新者 | いつ誰が更新したか |
+| 設備数 | 更新後の件数 |
+| 追加／変更／削除 | 件数 |
+| 変更内容 | `追加: A / 変更: B（規格下限・スパン） / 削除: C` の形式 |
+
+履歴は直近 100 世代まで残し、設備の中身まで持つのは直近 10 世代だけです（全世代分を持つとファイルが膨らみ、登録のたびに重くなるため）。
 
 ---
 
@@ -52,10 +166,11 @@ Android アプリから送られた JSON を処理するエントリポイント
 
 1. リクエストボディを JSON としてパース
 2. `getOrCreateFolder()` で保存先フォルダを確保
-3. `getOrCreateSpreadsheet()` でスプレッドシートを確保
-4. `appendToSheet()` でスプレッドシートに1行追加
-5. `appendToCsv()` で CSV に1行追加
-6. 成功時は `{ "status": "ok" }`、失敗時は `{ "status": "error", "message": "..." }` を返却
+3. `action` に応じて設備マスター・使用者・記録追記へ振り分け（未知の `action` はエラー）
+4. 記録追記の場合は `appendToSheet()` と `appendToCsv()` で1行ずつ追加
+5. 成功時は `{ "status": "ok", ... }`、失敗時は `{ "status": "error", "message": "..." }` を返却（いずれも `apiVersion` 付き）
+
+CSV は全文を読んで書き戻すため、記録追記も `LockService` で直列化しています。ロックを取らないと、同時送信で先の記録が消えます。
 
 ### `getOrCreateFolder()`
 
@@ -94,9 +209,13 @@ Android アプリから送られた JSON を処理するエントリポイント
 
 コメント欄にカンマやダブルクォートが含まれる場合は、CSV 形式に合わせてエスケープされます。
 
-### `doGet()`
+### `doGet(e)`
 
-ブラウザで URL に直接アクセスしたときの応答です。動作確認用に、API の説明テキストを返します。データの保存は行いません。
+`action=pullEquipment` で設備マスター、`action=pullHistory` で更新履歴を JSON で返します。それ以外（ブラウザで URL を直接開いた場合など）は動作確認用の説明テキストを返します。データの保存は行いません。
+
+### `readJsonFile(folder, fileName)`
+
+ファイルが無い場合は `null` を返しますが、**ファイルはあるが壊れている場合は例外**にします。空として扱うと、設備マスターが消えたのと同じ結果を全端末に配ってしまうためです。
 
 ---
 
@@ -240,9 +359,18 @@ Android アプリから送られた JSON を処理するエントリポイント
 ```
 マイドライブ/
 └── バンドナイフ張力測定/
-    ├── 張力記録          ← Google スプレッドシート（人が見やすい形式）
-    └── records.csv       ← CSV（Windows ビューアが読み込む）
+    ├── 張力記録                    ← Google スプレッドシート（人が見やすい形式）
+    │     ├── 全記録                  測定記録
+    │     ├── 設備マスター            現在の設備設定の写し
+    │     ├── 設備マスター履歴        誰がいつ何を変えたか
+    │     └── 使用者                  登録済みの使用者（パスワードは載らない）
+    ├── records.csv                 ← CSV（Windows ビューアが読み込む）
+    ├── equipment.json              ← 設備マスターの正データ
+    ├── equipment-history.json      ← 世代履歴
+    └── users.json                  ← 使用者とパスワードのハッシュ
 ```
+
+> `equipment.json` と `users.json` はアプリの動作に直結します。手で編集したり削除したりしないでください。`equipment.json` を失うと全端末が測定できなくなります。
 
 ### records.csv の形式
 
@@ -273,6 +401,10 @@ timestamp,equipmentName,frequencyHz,tensionN,passed,sampleCount,stdDev,ci95Lower
 | 「権限がありません」系のエラー | GAS のデプロイ設定で「実行ユーザー: 自分」になっているか確認。初回の権限承認を完了する |
 | テストは成功するが測定データが上がらない | アプリの **自動アップロード** が ON か確認。**未送信** 件数を確認し、必要なら **再送** |
 | コードを変更したが動作が変わらない | GAS で **新バージョン** として再デプロイしたか確認 |
+| 「ドライブのスクリプトが最新ではありません」 | `drive-upload.gs` を貼り直して**再デプロイ**。応答の `apiVersion` が古い状態です |
+| 「他の人が先に設備マスターを更新しました」 | 「今すぐ確認」で取り込み直してから、もう一度「ドライブへ登録」 |
+| 「〜は登録されていません」と出る | 別の端末で名前を変更した可能性があります。新しい名前でサインインし直してください |
+| 使用者を登録できない | `REGISTRATION_KEY` を設定している場合は、管理者から登録キーを受け取って入力 |
 | Windows ビューアにデータが出ない | Drive for Desktop の同期完了を待つ。`records.csv` がフォルダ内にあるか確認 |
 | 同じ名前のフォルダが複数ある | GAS は名前が一致する最初のフォルダを使用します。不要な同名フォルダは整理してください |
 
@@ -292,10 +424,12 @@ curl -X POST "https://script.google.com/macros/s/XXXXXXXX/exec" \
 
 ## セキュリティに関する注意
 
-- ウェブアプリ URL を知っている人は、誰でも POST でデータを送信できます（「アクセス: 全員」設定のため）
+- ウェブアプリ URL を知っている人は、誰でも POST で**測定記録を**送信できます（「アクセス: 全員」設定のため）
+- 設備マスターの書き換えには登録済みの使用者の名前とパスワードが必要です
+- ただし**使用者の登録自体は既定で誰でもできます**。URL は APK から取り出せるため、スクリプト プロパティに `REGISTRATION_KEY` を設定して登録を絞ってください
+- パスワードは端末でもドライブでも平文では保存されません（端末: PBKDF2 で導出した値を暗号化保存、ドライブ: さらに salt 付き SHA-256）
 - URL は社内の関係者のみに共有してください
 - スクリプトは **デプロイした Google アカウントのマイドライブ** にデータを保存します
-- より厳密な認証が必要な場合は、API キーやトークン検証の追加を検討してください（現行スクリプトには未実装）
 
 ---
 
@@ -303,7 +437,11 @@ curl -X POST "https://script.google.com/macros/s/XXXXXXXX/exec" \
 
 | ファイル | 説明 |
 |---------|------|
-| `drive-upload.gs` | 本ドキュメントの対象スクリプト |
-| `android/.../upload/DriveUploader.kt` | Android 側の送信処理 |
-| `android/.../screens/DetailScreens.kt` | 設定画面（URL 入力・テスト送信・再送） |
+| `drive-upload.gs` | 本ドキュメントの対象スクリプト（リポジトリ直下の 1 本のみ） |
+| `android/.../upload/DriveUploader.kt` | Android 側の測定記録の送信処理 |
+| `android/.../upload/DriveSyncClient.kt` | 設備マスター・使用者・履歴の通信 |
+| `android/.../domain/PasswordHasher.kt` | パスワードの導出と名前の正規化（GAS と同じ規則） |
+| `android/.../data/UserCredentialStore.kt` | 端末内の暗号化された資格情報の保存 |
+| `android/.../screens/AccountScreens.kt` | 使用者の登録・サインイン・変更の画面 |
+| `android/.../screens/DetailScreens.kt` | 設定画面（URL 入力・テスト送信・再送・設備マスター共有・履歴） |
 | `windows-viewer/MainWindow.xaml.cs` | `records.csv` の読み込み処理 |

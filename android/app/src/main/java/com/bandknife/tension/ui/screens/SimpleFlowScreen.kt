@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -21,55 +20,106 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.bandknife.tension.data.EquipmentEntity
+import com.bandknife.tension.ui.components.AdjustmentCard
+import com.bandknife.tension.ui.components.PassFailBadge
+import com.bandknife.tension.ui.components.SpecRangeBar
+import com.bandknife.tension.ui.components.TapFeedbackCard
+import com.bandknife.tension.ui.components.TapLevelMeter
+import com.bandknife.tension.ui.components.UnsyncedEquipmentBadge
+import com.bandknife.tension.ui.theme.Dimens
+import com.bandknife.tension.ui.theme.statusColors
 import com.bandknife.tension.viewmodel.AppViewModel
-import com.bandknife.tension.viewmodel.SimpleStep
 
 @Composable
-fun SimpleFlowScreen(vm: AppViewModel, onModeMenu: () -> Unit) {
-    val step by vm.simpleStep.collectAsState()
-    val equipment by vm.equipment.collectAsState()
-    val selected by vm.selectedEquipment.collectAsState()
+fun SimpleFlowScreen(vm: AppViewModel) {
+    MeasurementFlowScaffold(
+        vm = vm,
+        title = "バンドナイフ張力計",
+        selectContent = { equipment -> SimpleSelectStep(vm, equipment) },
+        measureContent = { selected -> SimpleMeasureStep(vm, selected) },
+        resultContent = { selected -> SimpleResultStep(vm, selected) }
+    )
+}
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("バンドナイフ張力計", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
-        when (step) {
-            SimpleStep.SELECT -> {
-                Text("設備を選んでください", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(16.dp))
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
-                    items(equipment) { eq ->
-                        EquipmentSelectCard(eq) {
-                            vm.selectEquipment(eq)
-                            vm.setSimpleStep(SimpleStep.MEASURE)
-                            vm.startMeasuring()
-                        }
-                    }
+@Composable
+private fun SimpleSelectStep(vm: AppViewModel, equipment: List<EquipmentEntity>) {
+    Column(Modifier.fillMaxSize()) {
+        Text("設備を選んでください", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(Dimens.SpaceLg))
+        if (equipment.isEmpty()) {
+            Text(
+                EMPTY_EQUIPMENT_MESSAGE,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = Dimens.SpaceLg)
+            )
+        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
+            contentPadding = PaddingValues(bottom = Dimens.SpaceLg)
+        ) {
+            items(equipment, key = { it.id }) { eq ->
+                EquipmentSelectCard(vm, eq) {
+                    vm.selectEquipment(eq)
+                    vm.setSimpleStep(com.bandknife.tension.viewmodel.SimpleStep.MEASURE)
+                    vm.startMeasuring()
                 }
             }
-            SimpleStep.MEASURE -> SimpleMeasureStep(vm, selected)
-            SimpleStep.RESULT -> SimpleResultStep(vm, selected)
         }
-        Spacer(Modifier.weight(1f))
-        Button(onClick = onModeMenu, modifier = Modifier.fillMaxWidth()) { Text("モード切替") }
     }
 }
 
 @Composable
-private fun EquipmentSelectCard(eq: EquipmentEntity, onClick: () -> Unit) {
+private fun EquipmentSelectCard(vm: AppViewModel, eq: EquipmentEntity, onClick: () -> Unit) {
+    val records by vm.records.collectAsState()
+    val localMode by vm.localMode.collectAsState()
+    val last = records.filter { it.equipmentId == eq.id }.maxByOrNull { it.timestamp }
+    val blockReason = vm.measureBlockReason(eq)
+    val selectable = blockReason == null
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(4.dp)
+        modifier = Modifier.fillMaxWidth().clickable(enabled = selectable, onClick = onClick),
+        elevation = CardDefaults.cardElevation(if (selectable) 4.dp else 0.dp),
+        colors = if (selectable) CardDefaults.cardColors()
+        else CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(Modifier.padding(20.dp)) {
-            Text(eq.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("標準: ${eq.standardTension.toInt()} N  規格: ${eq.specLower.toInt()}〜${eq.specUpper.toInt()} N")
+        Column(Modifier.padding(Dimens.SpaceXl)) {
+            Text(
+                eq.name,
+                style = MaterialTheme.typography.headlineSmall,
+                color = if (selectable) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "標準張力 ${vm.formatStandard(eq)} / 規格 ${vm.formatSpecRange(eq)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selectable) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (!localMode && !eq.isSynced) {
+                UnsyncedEquipmentBadge(modifier = Modifier.padding(top = Dimens.SpaceSm))
+            }
+            blockReason?.let { reason ->
+                Text(
+                    reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = Dimens.SpaceSm)
+                )
+            }
+            last?.let { record ->
+                Text(
+                    "前回 ${vm.formatTension(record.tensionN)}（${if (record.passed) "OK" else "要調整"}）",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (record.passed) statusColors.okText else statusColors.ngText,
+                    modifier = Modifier.padding(top = Dimens.SpaceXs)
+                )
+            }
         }
     }
 }
@@ -78,18 +128,57 @@ private fun EquipmentSelectCard(eq: EquipmentEntity, onClick: () -> Unit) {
 private fun SimpleMeasureStep(vm: AppViewModel, equipment: EquipmentEntity?) {
     val continuous by vm.continuous.collectAsState()
     val measure by vm.measureState.collectAsState()
+
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Text(equipment?.name ?: "", fontSize = 20.sp)
-        Spacer(Modifier.height(24.dp))
-        Text("刃の中央を${continuous.targetCount}回軽く叩いてください", fontSize = 18.sp)
-        Spacer(Modifier.height(32.dp))
-        Text("${continuous.currentCount} / ${continuous.targetCount}", fontSize = 64.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(16.dp))
-        Text(measure.tapMessage, color = MaterialTheme.colorScheme.secondary)
-        measure.noiseWarning?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
-        if (continuous.stats != null) {
-            vm.setSimpleStep(SimpleStep.RESULT)
-            vm.stopMeasuring()
+        Text(equipment?.name ?: "", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(Dimens.SpaceXl))
+        if (measure.isArming) {
+            Text(
+                "まだ叩かないでください",
+                style = MaterialTheme.typography.headlineSmall,
+                color = statusColors.warnText
+            )
+            Text(
+                "測定開始まで ${measure.armingSecondsLeft} 秒",
+                style = MaterialTheme.typography.headlineMedium,
+                color = statusColors.warnText,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+            )
+        } else {
+            Text(
+                "刃の中央を${continuous.targetCount}回軽く叩いてください",
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+        Spacer(Modifier.height(Dimens.SpaceXl))
+        Text(
+            "${continuous.currentCount} / ${continuous.targetCount}",
+            style = MaterialTheme.typography.displayLarge,
+            color = if (measure.isArming) MaterialTheme.colorScheme.onSurfaceVariant
+            else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.semantics {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = "${continuous.targetCount}回中${continuous.currentCount}回"
+            }
+        )
+        Spacer(Modifier.height(Dimens.SpaceLg))
+        if (measure.isMeasuring) {
+            TapLevelMeter(measure.amplitude, modifier = Modifier.padding(horizontal = Dimens.SpaceLg))
+            Spacer(Modifier.height(Dimens.SpaceSm))
+        }
+        TapFeedbackCard(
+            quality = continuous.lastTapQuality,
+            message = continuous.lastTapMessage,
+            repeatedRejection = continuous.dominantRejection,
+            onRaiseSensitivity = { vm.raiseSensitivityAndRestart() }
+        )
+        measure.noiseWarning?.let {
+            Text(
+                it,
+                color = statusColors.warnText,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = Dimens.SpaceSm)
+            )
         }
     }
 }
@@ -97,26 +186,48 @@ private fun SimpleMeasureStep(vm: AppViewModel, equipment: EquipmentEntity?) {
 @Composable
 private fun SimpleResultStep(vm: AppViewModel, equipment: EquipmentEntity?) {
     val continuous by vm.continuous.collectAsState()
-    val stats = continuous.stats
-    val passed = equipment?.let { eq ->
-        stats?.let { vm.repository.evaluate(eq, continuous.frequencies.average(), it.mean) }
-    } ?: false
+    val stats = continuous.stats ?: return
+    val frequency = continuous.frequencies.average()
+    val passed = equipment?.let { vm.repository.evaluate(it, frequency, stats.mean) } ?: false
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Text(equipment?.name ?: "", fontSize = 20.sp)
-        Spacer(Modifier.height(24.dp))
-        stats?.let {
-            Text(vm.formatTension(it.mean), fontSize = 72.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(16.dp))
-            com.bandknife.tension.ui.components.PassFailBadge(passed)
-            equipment?.let { eq ->
-                val dev = it.mean - eq.standardTension
-                Text("標準 ${eq.standardTension.toInt()} N に対して ${if (dev >= 0) "+" else ""}${dev.toInt()} N", modifier = Modifier.padding(top = 8.dp))
+        Text(equipment?.name ?: "", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(Dimens.SpaceXl))
+        Text(
+            vm.formatPrimaryValue(equipment, frequency, stats.mean),
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            vm.formatSecondaryValue(equipment, frequency, stats.mean),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(Dimens.SpaceLg))
+        PassFailBadge(passed)
+        equipment?.let { eq ->
+            Spacer(Modifier.height(Dimens.SpaceLg))
+            SpecRangeBar(
+                value = if (eq.useHzMode) frequency else stats.mean,
+                lower = if (eq.useHzMode) eq.specHzLower else eq.specLower,
+                upper = if (eq.useHzMode) eq.specHzUpper else eq.specUpper,
+                lowerLabel = if (eq.useHzMode) "${eq.specHzLower} Hz" else vm.formatTension(eq.specLower),
+                upperLabel = if (eq.useHzMode) "${eq.specHzUpper} Hz" else vm.formatTension(eq.specUpper)
+            )
+            Spacer(Modifier.height(Dimens.SpaceLg))
+            AdjustmentCard(vm.adjustmentHint(eq, frequency, stats.mean))
+            vm.lastRecordFor(eq.id)?.let { previous ->
+                Spacer(Modifier.height(Dimens.SpaceMd))
+                Text(
+                    "前回 ${vm.formatTension(previous.tensionN)} → 今回 ${vm.formatTension(stats.mean)}" +
+                        "（${vm.formatTensionDelta(stats.mean - previous.tensionN)}）",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        }
-        Spacer(Modifier.height(32.dp))
-        Button(onClick = { vm.saveAndResetToSelect() }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-            Text("記録して終了", fontSize = 20.sp)
         }
     }
 }
+
+internal const val EMPTY_EQUIPMENT_MESSAGE =
+    "表示できる設備がありません。下の「設備管理」から追加するか、削除済み設備を復元してください。"

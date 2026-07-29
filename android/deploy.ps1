@@ -1,8 +1,11 @@
 $ErrorActionPreference = 'Stop'
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $Root 'apk-paths.ps1')
+
 $ApkSrc = Join-Path $Root 'app\build\outputs\apk\release\app-release.apk'
-$ApkDst = Join-Path (Split-Path $Root -Parent) 'バンドナイフ張力計.apk'
+$ProjectRoot = Split-Path $Root -Parent
+$ApkDst = Get-DistApkPath -ProjectRoot $ProjectRoot
 
 Write-Host '=== Build release APK ==='
 Push-Location $Root
@@ -23,6 +26,7 @@ if (-not (Test-Path -LiteralPath $ApkSrc)) {
 
 Write-Host ''
 Write-Host '=== Copy APK to project root ==='
+Remove-GarbledDistApks -ProjectRoot $ProjectRoot
 Copy-Item -LiteralPath $ApkSrc -Destination $ApkDst -Force
 Write-Host $ApkDst
 

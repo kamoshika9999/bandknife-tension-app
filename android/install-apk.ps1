@@ -1,8 +1,10 @@
 $ErrorActionPreference = 'Stop'
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $Root 'apk-paths.ps1')
+
 $BuiltApk = Join-Path $Root 'app\build\outputs\apk\release\app-release.apk'
-$DistApk = Join-Path (Split-Path $Root -Parent) 'バンドナイフ張力計.apk'
+$DistApk = Get-DistApkPath -ProjectRoot (Split-Path $Root -Parent)
 $InstallApk = Join-Path $env:TEMP 'bandknife-tension-install.apk'
 $Adb = 'C:\platform-tools-latest-windows\platform-tools\adb.exe'
 

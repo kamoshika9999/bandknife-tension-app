@@ -19,5 +19,7 @@ data class MeasurementRecordEntity(
     val comment: String = "",
     val isLocked: Boolean = false,
     val rawValuesJson: String = "",
-    val uploaded: Boolean = false
+    val uploaded: Boolean = false,
+    /** ローカルモード中に保存した記録。ドライブへは送らない。 */
+    val localOnly: Boolean = false
 )
