@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $OutDir = Join-Path $PSScriptRoot "manual\images"
 $DumpLocal = Join-Path $env:TEMP "bandknife-ui-dump.xml"
-$TapWav = Join-Path (Split-Path -Parent $PSScriptRoot) "test-sounds\audible-harmonics\01_halving_chain_peak_85hz.wav"
+$TapWav = Join-Path (Split-Path -Parent $PSScriptRoot) "test-sounds\audible-harmonics\00_listen_12th_24th_36th_90_180_269hz.wav"
 
 $Labels = [pscustomobject]@{
     simple        = -join @([char]0x30B7, [char]0x30F3, [char]0x30D7, [char]0x30EB)

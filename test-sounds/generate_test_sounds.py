@@ -1,54 +1,51 @@
 #!/usr/bin/env python3
 """バンドナイフ張力測定アプリ用のテスト音を生成するスクリプト。
 
-アプリ仕様:
-  - サンプルレート: 44100 Hz
-  - 検出周波数範囲: 5〜300 Hz（基本周波数はスパン 1 m で約 7 Hz、耳に聞こえるのは倍音）
-  - 打撃品質判定: 振幅 0.15〜0.95、倍音比、二重打撃検出
-  - 張力: T = m·((2πf)² − (nπ/S)⁴·EI/m) / (nπ/S)²  （張力＋曲げ。未設定時は旧式 T = 4·m·S²·f²）
+基本周波数 f0 (~7.5 Hz) の整数倍のみで合成する。
+PCスピーカーで聞こえる 80〜300 Hz 帯（主に 12次・24次・36次）を強調する。
 """
 
 import math
+import random
 import struct
 import wave
 from pathlib import Path
 
 SAMPLE_RATE = 44100
 OUTPUT_DIR = Path(__file__).parent
+DEFAULT_DURATION = 1.2
+TARGET_PEAK = 0.95
+WEAK_TARGET_PEAK = 0.14
 
-# デフォルト設備（Repository.ensureDefaultEquipmentIfNeeded と同じ）
 DEFAULT_EQUIPMENT = {
     "name": "ペフ用スライサー1号",
-    "mass_per_meter": 0.844,       # kg/m（幅86mm × 板厚1.25mm × 密度7850）
+    "mass_per_meter": 0.844,
     "span_meters": 1.0,
-    "standard_tension": 160.0,     # N
+    "standard_tension": 160.0,
     "spec_lower": 150.0,
     "spec_upper": 180.0,
     "width_mm": 86.0,
     "thickness_mm": 1.25,
 }
 
-# AppViewModel.injectManualScreenshotTaps() と同じ揺らぎ（5回測定用）
 MEASUREMENT_JITTERS = [-0.012, -0.005, 0.0, 0.006, 0.011]
+PEAK_ORDER = 12
+MAX_ORDER = 30  # 36次まで（f0~7.5Hz なら 270 Hz 付近）
 
 
 def tension_to_frequency(tension_n: float, mass: float, span: float) -> float:
-    """張力＋曲げモデルで周波数を逆算（デフォルト設備寸法）。"""
     eq = DEFAULT_EQUIPMENT
     w = eq["width_mm"] / 1000.0
     t = eq["thickness_mm"] / 1000.0
-    e = 210e9
-    inertia = w * t**3 / 12.0  # 面外曲げ（張力感度が高い）
-    ei = e * inertia
-    n = 1
-    k = n * math.pi / span
+    ei = 210e9 * (w * t**3 / 12.0)
+    k = math.pi / span
     omega_sq = k**2 * tension_n / mass + k**4 * ei / mass
     return math.sqrt(omega_sq) / (2 * math.pi)
 
 
-def write_wav(path: Path, samples: list[float]) -> None:
-    """16bit モノラル WAV を書き出す。"""
-    clipped = [max(-1.0, min(1.0, s)) for s in samples]
+def write_wav(path: Path, samples: list[float], target_peak: float = TARGET_PEAK) -> None:
+    boosted = normalize_peak(samples, target_peak)
+    clipped = [max(-1.0, min(1.0, s)) for s in boosted]
     pcm = b"".join(struct.pack("<h", int(s * 32767)) for s in clipped)
     with wave.open(str(path), "w") as wf:
         wf.setnchannels(1)
@@ -57,90 +54,118 @@ def write_wav(path: Path, samples: list[float]) -> None:
         wf.writeframes(pcm)
 
 
-def tap_envelope(t: float, attack: float = 300.0, decay: float = 10.0) -> float:
-    """打撃音らしい急峻な立ち上がりと指数減衰。"""
+def normalize_peak(samples: list[float], target_peak: float) -> list[float]:
+    peak = max((abs(s) for s in samples), default=0.0)
+    if peak < 1e-8:
+        return samples
+    return [s * (target_peak / peak) for s in samples]
+
+
+def tap_envelope(t: float, attack: float = 500.0, decay: float = 4.5) -> float:
     return (1.0 - math.exp(-attack * t)) * math.exp(-decay * t)
 
 
-def generate_tap(
-    freq_hz: float,
-    duration: float = 0.45,
-    amplitude: float = 0.55,
-    harmonic_ratio: float = 0.15,
-    decay: float = 10.0,
-) -> list[float]:
-    n = int(SAMPLE_RATE * duration)
-    samples = []
+def audible_order_weight(fundamental_hz: float, order: int) -> float:
+    """周波数帯ごとに重み付け。可聴帯域の倍音を強く、超低域は弱く（アプリ用に残す）。"""
+    freq = fundamental_hz * order
+    # 1/n 減衰（のこぎり波に近い自然な倍音列）
+    weight = 1.0 / order
+
+    if freq < 35:
+        weight *= 0.08
+    elif freq < 65:
+        weight *= 0.35
+    elif freq < 120:
+        weight *= 5.0
+    elif freq < 320:
+        weight *= 4.0
+    else:
+        weight *= 0.5
+
+    # 12次・24次・36次をさらに強調（耳で倍音として分かりやすい）
+    if order in (12, 24, 36):
+        weight *= 2.5
+    if order in (11, 13, 23, 25):
+        weight *= 1.6
+
+    return weight
+
+
+def harmonic_weights(
+    fundamental_hz: float,
+    max_order: int,
+    *,
+    order_scale: dict[int, float] | None = None,
+) -> list[tuple[int, float]]:
+    raw: list[tuple[int, float]] = []
+    for order in range(1, max_order + 1):
+        weight = audible_order_weight(fundamental_hz, order)
+        if order_scale and order in order_scale:
+            weight *= order_scale[order]
+        if weight > 1e-6:
+            raw.append((order, weight))
+    return raw
+
+
+def add_tap_click(samples: list[float], click_ms: float = 8.0, level: float = 0.35) -> list[float]:
+    """打撃感のある短いクリック（倍音確認用・高域を少し足す）。"""
+    n = min(int(SAMPLE_RATE * click_ms / 1000.0), len(samples))
+    rng = random.Random(42)
     for i in range(n):
-        t = i / SAMPLE_RATE
-        env = tap_envelope(t, decay=decay)
-        phase = 2 * math.pi * freq_hz * t
-        s = math.sin(phase) + harmonic_ratio * math.sin(2 * phase)
-        samples.append(amplitude * env * s)
+        click = (1.0 - i / n) * level * rng.uniform(-1.0, 1.0)
+        samples[i] += click
     return samples
 
 
-def generate_multifreq_tap(
-    components: list[tuple[float, float]],
-    duration: float = 0.45,
-    amplitude: float = 0.55,
-    decay: float = 10.0,
+def generate_harmonic_tap(
+    fundamental_hz: float,
+    *,
+    max_order: int = MAX_ORDER,
+    duration: float = DEFAULT_DURATION,
+    decay: float = 4.5,
+    order_scale: dict[int, float] | None = None,
+    orders_only: list[int] | None = None,
+    target_peak: float = TARGET_PEAK,
+    with_click: bool = True,
 ) -> list[float]:
-    """任意の周波数と強さの組み合わせで打撃音を合成する。"""
+    weights = harmonic_weights(fundamental_hz, max_order, order_scale=order_scale)
+    if orders_only is not None:
+        allowed = set(orders_only)
+        weights = [(o, w) for o, w in weights if o in allowed]
+
     n = int(SAMPLE_RATE * duration)
-    samples = []
+    samples: list[float] = []
     for i in range(n):
         t = i / SAMPLE_RATE
         env = tap_envelope(t, decay=decay)
         value = 0.0
-        for freq_hz, weight in components:
-            value += weight * math.sin(2 * math.pi * freq_hz * t)
-        samples.append(amplitude * env * value)
-    return samples
+        for order, weight in weights:
+            value += weight * math.sin(2 * math.pi * fundamental_hz * order * t)
+        samples.append(env * value)
 
-
-def generate_halving_chain_tap(
-    peak_hz: float,
-    *,
-    depth: int = 4,
-    sub_strength: float = 0.5,
-    duration: float = 0.45,
-    amplitude: float = 0.55,
-) -> list[float]:
-    """耳に聞こえるピークと、アプリが半分ずつたどる下位成分（2, 4, 8, 16倍音相当）。"""
-    components: list[tuple[float, float]] = []
-    freq = peak_hz
-    weight = 1.0
-    for _ in range(depth + 1):
-        components.append((freq, weight))
-        freq /= 2.0
-        weight *= sub_strength
-    return generate_multifreq_tap(components, duration=duration, amplitude=amplitude)
-
-
-def generate_integer_harmonic_series_tap(
-    fundamental_hz: float,
-    *,
-    max_order: int = 12,
-    peak_order: int = 12,
-    duration: float = 0.45,
-    amplitude: float = 0.55,
-) -> list[float]:
-    """基本周波数の整数倍を並べ、指定次数（例: 12次≈90Hz）を最も強くする。"""
-    components = []
-    for order in range(1, max_order + 1):
-        # ピーク次数に近いほど強く、低次は弱め
-        weight = 0.15 + 0.85 * math.exp(-((order - peak_order) ** 2) / 8.0)
-        components.append((fundamental_hz * order, weight))
-    return generate_multifreq_tap(components, duration=duration, amplitude=amplitude)
+    if with_click:
+        samples = add_tap_click(samples)
+    return normalize_peak(samples, target_peak)
 
 
 def generate_silence(duration: float = 1.0) -> list[float]:
     return [0.0] * int(SAMPLE_RATE * duration)
 
 
+def _double_hit(samples: list[float], gap_sec: float = 0.035) -> list[float]:
+    duration = 1.0
+    gap_samples = int(gap_sec * SAMPLE_RATE)
+    n = int(SAMPLE_RATE * duration)
+    out = [0.0] * n
+    for hit_start in (0, gap_samples):
+        for j, value in enumerate(samples):
+            idx = hit_start + j
+            if idx < n:
+                out[idx] += value
+    return normalize_peak(out, TARGET_PEAK)
+
+
 def generate_audible_harmonic_sounds() -> None:
-    """耳に聞こえる帯域（主に 80〜90 Hz）をピークとする倍音テスト音。"""
     eq = DEFAULT_EQUIPMENT
     m, s = eq["mass_per_meter"], eq["span_meters"]
     out_dir = OUTPUT_DIR / "audible-harmonics"
@@ -150,63 +175,74 @@ def generate_audible_harmonic_sounds() -> None:
     f0_low = tension_to_frequency(eq["spec_lower"], m, s)
     f0_high = tension_to_frequency(eq["spec_upper"], m, s)
 
-    # 12次付近が耳に聞こえる帯域（80〜90 Hz）
-    peak_order = 12
-    audible_std = f0_std * peak_order
-    audible_low = f0_low * peak_order
-    audible_high = f0_high * peak_order
+    h12 = f0_std * 12
+    h24 = f0_std * 24
+    h36 = f0_std * 36
 
     sounds: list[tuple[str, list[float], str]] = [
         (
-            "01_halving_chain_peak_85hz.wav",
-            generate_halving_chain_tap(85.0, depth=4, sub_strength=0.5),
-            "ピーク 85 Hz + 42/21/11/5 Hz（アプリの半分たどり用）",
+            f"00_listen_12th_24th_36th_{h12:.0f}_{h24:.0f}_{h36:.0f}hz.wav",
+            generate_harmonic_tap(
+                f0_std,
+                orders_only=[12, 24, 36],
+                with_click=True,
+            ),
+            f"耳確認用: {h12:.0f}/{h24:.0f}/{h36:.0f} Hz の3つの倍音がはっきり聞こえる",
         ),
         (
-            "02_halving_chain_peak_88hz.wav",
-            generate_halving_chain_tap(88.0, depth=4, sub_strength=0.55),
-            "ピーク 88 Hz + 下位成分（半分たどり用・やや強め）",
+            f"01_harmonics_f0_{f0_std:.1f}hz_12th_{h12:.0f}hz_160n.wav",
+            generate_harmonic_tap(f0_std),
+            f"f0={f0_std:.1f} Hz 1-{MAX_ORDER}次（12次={h12:.0f} Hz 最強）標準 160 N",
         ),
         (
-            "03_halving_chain_weak_sub_85hz.wav",
-            generate_halving_chain_tap(85.0, depth=4, sub_strength=0.25),
-            "ピーク 85 Hz・下位成分が弱い（半分たどりが止まりやすい）",
+            f"02_harmonics_f0_{f0_high:.1f}hz_12th_{f0_high * 12:.0f}hz_180n.wav",
+            generate_harmonic_tap(f0_high),
+            f"規格上限 180 N",
         ),
         (
-            "04_peak_only_85hz_no_subharmonics.wav",
-            generate_tap(85.0),
-            "85 Hz のみ（下位成分なし・対照用）",
+            f"03_harmonics_weak_low_orders_f0_{f0_std:.1f}hz.wav",
+            generate_harmonic_tap(
+                f0_std,
+                order_scale={o: 0.1 for o in range(1, 8)},
+            ),
+            "低次(1-7次)を弱くした倍音列",
         ),
         (
-            f"05_series_f0_{f0_std:.1f}hz_12th_{audible_std:.0f}hz_160n.wav",
-            generate_integer_harmonic_series_tap(f0_std, max_order=14, peak_order=peak_order),
-            f"基本 {f0_std:.1f} Hz の整数倍列、{peak_order}次={audible_std:.0f} Hz が最強（160 N）",
+            f"04_audible_band_12th_to_18th_{h12:.0f}hz_up.wav",
+            generate_harmonic_tap(f0_std, orders_only=[12, 13, 14, 15, 16, 17, 18]),
+            f"可聴帯域のみ {h12:.0f} Hz 付近の倍音束",
         ),
         (
-            f"06_series_f0_{f0_low:.1f}hz_12th_{audible_low:.0f}hz_150n.wav",
-            generate_integer_harmonic_series_tap(f0_low, max_order=14, peak_order=peak_order),
-            f"規格下限 150 N 相当（12次約{audible_low:.0f} Hz）",
+            f"05_series_f0_{f0_std:.1f}hz_12th_{h12:.0f}hz_160n.wav",
+            generate_harmonic_tap(f0_std),
+            "01 と同型",
         ),
         (
-            f"07_series_f0_{f0_high:.1f}hz_12th_{audible_high:.0f}hz_180n.wav",
-            generate_integer_harmonic_series_tap(f0_high, max_order=14, peak_order=peak_order),
-            f"規格上限 180 N 相当（12次約{audible_high:.0f} Hz）",
+            f"06_series_f0_{f0_low:.1f}hz_12th_{f0_low * 12:.0f}hz_150n.wav",
+            generate_harmonic_tap(f0_low),
+            "規格下限 150 N",
         ),
         (
-            "08_halving_chain_85hz_weak_tap.wav",
-            generate_halving_chain_tap(85.0, depth=4, sub_strength=0.5, amplitude=0.08),
-            "半分たどり用・弱い打撃（品質判定テスト）",
+            f"07_series_f0_{f0_high:.1f}hz_12th_{f0_high * 12:.0f}hz_180n.wav",
+            generate_harmonic_tap(f0_high),
+            "規格上限 180 N",
         ),
         (
-            "09_halving_chain_85hz_double_hit.wav",
-            _double_halving_chain(85.0),
-            "半分たどり用・二重打撃",
+            "08_harmonics_160n_weak_tap.wav",
+            generate_harmonic_tap(f0_std, target_peak=WEAK_TARGET_PEAK),
+            "弱い打撃",
+        ),
+        (
+            "09_harmonics_160n_double_hit.wav",
+            _double_hit(generate_harmonic_tap(f0_std, duration=0.45, target_peak=1.0)),
+            "二重打撃",
         ),
     ]
 
-    print("=== 耳に聞こえる倍音テスト音（audible-harmonics/）===")
-    print(f"  デフォルト設備: 基本 {f0_std:.2f} Hz → {peak_order}次で約 {audible_std:.0f} Hz")
-    print("  アプリはピークから半分ずつ下がれる成分があると、より低い周波数を採用します\n")
+    seq_name = "10_measurement_5taps_12th_harmonic.wav"
+
+    print("=== 倍音テスト音（audible-harmonics/）===")
+    print(f"  f0={f0_std:.2f} Hz / 12次={h12:.0f} Hz / 24次={h24:.0f} Hz / 36次={h36:.0f} Hz\n")
 
     for filename, samples, note in sounds:
         write_wav(out_dir / filename, samples)
@@ -214,36 +250,22 @@ def generate_audible_harmonic_sounds() -> None:
         print(f"  {filename}")
         print(f"    {note}  (peak={peak:.3f})")
 
-    # 5回測定（標準張力＋揺らぎ、12次が聞こえる帯域）
+    keep = {s[0] for s in sounds} | {seq_name}
+    for old in out_dir.glob("*.wav"):
+        if old.name not in keep:
+            old.unlink()
+            print(f"  (削除) {old.name}")
+
     sequence: list[float] = []
     for i, jitter in enumerate(MEASUREMENT_JITTERS):
         if i > 0:
             sequence.extend(generate_silence(1.2))
         f0 = f0_std * (1.0 + jitter)
-        sequence.extend(
-            generate_integer_harmonic_series_tap(f0, max_order=14, peak_order=peak_order)
-        )
-    seq_name = "10_measurement_5taps_12th_harmonic.wav"
-    write_wav(out_dir / seq_name, sequence)
+        sequence.extend(generate_harmonic_tap(f0))
+    write_wav(out_dir / seq_name, normalize_peak(sequence, TARGET_PEAK))
     print(f"\n  {seq_name}")
-    print("    5回測定フロー用（各打撃とも 12次付近が最強）")
-    print(f"  → {len(sounds) + 1} ファイルを {out_dir} に生成\n")
-
-
-def _double_halving_chain(peak_hz: float) -> list[float]:
-    """二重打撃（半分たどり用チェーン）。"""
-    duration = 0.6
-    gap = 0.035
-    hit = generate_halving_chain_tap(peak_hz, duration=0.25, amplitude=0.55)
-    gap_samples = int(gap * SAMPLE_RATE)
-    n = int(SAMPLE_RATE * duration)
-    samples = [0.0] * n
-    for hit_start in (0, gap_samples):
-        for j, value in enumerate(hit):
-            idx = hit_start + j
-            if idx < n:
-                samples[idx] += value
-    return samples
+    print("    5回測定フロー用")
+    print(f"  -> {len(sounds) + 1} ファイル\n")
 
 
 def main() -> None:

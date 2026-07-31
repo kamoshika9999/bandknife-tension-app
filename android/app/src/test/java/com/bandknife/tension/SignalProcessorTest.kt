@@ -28,7 +28,9 @@ class SignalProcessorTest {
         }
         processor.endTap()
 
-        val freq = processor.frequencyFromFinalizedTap(1, sampleRate, bufferSize, minBin, maxBin)
+        val freq = processor.frequencyFromFinalizedTap(
+            1, sampleRate, bufferSize, minBin, maxBin, AudioAnalyzer.MIN_FREQ, AudioAnalyzer.MAX_FREQ
+        )
         assertNotNull(freq)
         assertTrue("expected ~$targetHz Hz but was $freq", abs(freq!! - targetHz) < 3.0)
     }

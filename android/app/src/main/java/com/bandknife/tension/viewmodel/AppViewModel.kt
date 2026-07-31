@@ -7,6 +7,7 @@ import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bandknife.tension.audio.AudioAnalyzer
+import com.bandknife.tension.audio.NoiseCalibrationSnapshot
 import com.bandknife.tension.data.AppMode
 import com.bandknife.tension.data.EquipmentEntity
 import com.bandknife.tension.data.MeasurementRecordEntity
@@ -20,8 +21,10 @@ import com.bandknife.tension.domain.RecordsCsvExporter
 import com.bandknife.tension.domain.StatisticsEngine
 import com.bandknife.tension.domain.TapQuality
 import com.bandknife.tension.domain.TensionCalculator
-import com.bandknife.tension.upload.EquipmentRevision
+import com.bandknife.tension.util.WaveformArchive
 import com.bandknife.tension.upload.HistoryOutcome
+import com.bandknife.tension.upload.EquipmentRevision
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -207,6 +210,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var accountJob: Job? = null
     private var historyJob: Job? = null
     private var lastHandledTapId = 0L
+    private var waveformSessionDir: File? = null
+    private var sessionNoiseWaveformPath: String? = null
+    private val sessionTapWaveformPaths = mutableListOf<String>()
 
     init {
         viewModelScope.launch {
@@ -261,6 +267,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     result.finalizedTapFrequencyHz > 0
                 ) {
                     lastHandledTapId = result.tapFinalizedId
+                    saveTapWaveform(result.tapFinalizedId, sessionTapWaveformPaths.size + 1)
                     val tapTension = repository.tensionFor(eq, result.finalizedTapFrequencyHz)
                     handleTap(
                         result.finalizedTapFrequencyHz,
@@ -595,6 +602,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             audio.setSensitivity(sensitivity)
             audio.setPreferredDevice(resolvedMicId)
             audio.resetTapAccumulation()
+            waveformSessionDir = WaveformArchive.createSessionDir(getApplication())
+            sessionNoiseWaveformPath = null
+            sessionTapWaveformPaths.clear()
             audio.beginNoiseCalibration()
             if (!audio.start()) {
                 _saveMessage.value = "USBマイクを開始できませんでした。接続を確認してください"
@@ -606,7 +616,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 delay(1000)
             }
 
-            val noiseDb = audio.finalizeNoiseCalibration()
+            val noiseSnapshot = audio.finalizeNoiseCalibration()
+            saveNoiseWaveforms(noiseSnapshot)
+            val noiseDb = noiseSnapshot.levelDb
             val warning = if (noiseDb > NOISY_ENVIRONMENT_DB) {
                 "周囲が騒がしいため測定精度が落ちる可能性があります"
             } else null
@@ -749,7 +761,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             ci95Lower = stats.ci95Lower,
             ci95Upper = stats.ci95Upper,
             comment = comment,
-            rawValuesJson = JSONArray(cont.values).toString()
+            rawValuesJson = JSONArray(cont.values).toString(),
+            noiseWaveformPath = sessionNoiseWaveformPath.orEmpty(),
+            tapWaveformsJson = JSONArray(sessionTapWaveformPaths).toString()
         )
         val id = repository.saveRecord(record)
         _continuous.value = cont.copy(savedRecordId = id)
@@ -954,13 +968,53 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private fun saveNoiseWaveforms(snapshot: NoiseCalibrationSnapshot) {
+        val dir = waveformSessionDir ?: return
+        val app = getApplication<Application>()
+        snapshot.waveform?.takeIf { it.isNotEmpty() }?.let { samples ->
+            val wav = File(dir, "noise.wav")
+            WaveformArchive.writeWav(wav, samples, AudioAnalyzer.SAMPLE_RATE)
+            sessionNoiseWaveformPath = WaveformArchive.relativePath(app, wav)
+        }
+        snapshot.spectrum?.let { spec ->
+            val (minBin, _) = audio.analysisBins()
+            WaveformArchive.writeSpectrumCsv(
+                File(dir, "noise_spectrum.csv"),
+                spec,
+                minBin,
+                AudioAnalyzer.SAMPLE_RATE,
+                AudioAnalyzer.BUFFER_SIZE
+            )
+        }
+    }
+
+    private fun saveTapWaveform(tapId: Long, tapIndex: Int) {
+        val dir = waveformSessionDir ?: return
+        val app = getApplication<Application>()
+        audio.snapshotTapWaveform(tapId)?.takeIf { it.isNotEmpty() }?.let { samples ->
+            val wav = File(dir, "tap_%02d.wav".format(Locale.US, tapIndex))
+            WaveformArchive.writeWav(wav, samples, AudioAnalyzer.SAMPLE_RATE)
+            sessionTapWaveformPaths.add(WaveformArchive.relativePath(app, wav))
+        }
+        audio.snapshotTapSpectrum(tapId)?.let { spec ->
+            val (minBin, _) = audio.analysisBins()
+            WaveformArchive.writeSpectrumCsv(
+                File(dir, "tap_%02d_spectrum.csv".format(Locale.US, tapIndex)),
+                spec,
+                minBin,
+                AudioAnalyzer.SAMPLE_RATE,
+                AudioAnalyzer.BUFFER_SIZE
+            )
+        }
+    }
+
     override fun onCleared() {
         audio.stop()
         super.onCleared()
     }
 
     private companion object {
-        const val ARMING_SECONDS = 2
+        const val ARMING_SECONDS = 5
         const val NOISY_ENVIRONMENT_DB = -20.0
         const val MIN_SENSITIVITY = 0.02
 

@@ -21,14 +21,25 @@ class SignalProcessor {
 
     private val tapsToStack = mutableSetOf<Long>()
     private val finalizedTapSpectra = mutableMapOf<Long, DoubleArray>()
+    private val finalizedTapWaveforms = mutableMapOf<Long, DoubleArray>()
     private val stackedSpectra = mutableListOf<DoubleArray>()
     private var stackedSpectrum: DoubleArray? = null
+    private var tapWaveformSamples: MutableList<Double>? = null
+    private var noiseWaveformSamples: MutableList<Double>? = null
+
+    companion object {
+        private const val MAX_TAP_WAVEFORM_SAMPLES = 44100 * 2
+        private const val MAX_NOISE_WAVEFORM_SAMPLES = 44100 * 6
+    }
+
+    val isNoiseCalibrating: Boolean get() = noiseCalibrationActive
 
     fun beginNoiseCalibration() {
         noiseCalibrationActive = true
         noiseAccum = null
         noiseAccumCount = 0
         noiseSpectrum = null
+        noiseWaveformSamples = mutableListOf()
     }
 
     fun finalizeNoiseCalibration(): Double {
@@ -44,8 +55,10 @@ class SignalProcessor {
         tapSpectrumAccum = null
         tapSpectrumCount = 0
         activeTapId = 0
+        tapWaveformSamples = null
         tapsToStack.clear()
         finalizedTapSpectra.clear()
+        finalizedTapWaveforms.clear()
         stackedSpectra.clear()
         stackedSpectrum = null
     }
@@ -56,6 +69,15 @@ class SignalProcessor {
             activeTapId = tapId
             tapSpectrumAccum = null
             tapSpectrumCount = 0
+            tapWaveformSamples = mutableListOf()
+        }
+    }
+
+    fun accumulateTapWaveform(samples: ShortArray, count: Int) {
+        val buffer = tapWaveformSamples ?: return
+        val limit = minOf(count, MAX_TAP_WAVEFORM_SAMPLES - buffer.size)
+        for (i in 0 until limit) {
+            buffer.add(samples[i].toDouble())
         }
     }
 
@@ -76,6 +98,26 @@ class SignalProcessor {
         for (i in minBin..maxBin) accum[i - minBin] += mags[i]
         noiseAccumCount++
     }
+
+    fun accumulateNoiseWaveform(samples: ShortArray, count: Int) {
+        if (!noiseCalibrationActive) return
+        val buffer = noiseWaveformSamples ?: return
+        val limit = minOf(count, MAX_NOISE_WAVEFORM_SAMPLES - buffer.size)
+        for (i in 0 until limit) {
+            buffer.add(samples[i].toDouble())
+        }
+    }
+
+    fun snapshotNoiseWaveform(): DoubleArray? =
+        noiseWaveformSamples?.toDoubleArray()?.takeIf { it.isNotEmpty() }
+
+    fun snapshotNoiseSpectrum(): DoubleArray? = noiseSpectrum?.copyOf()
+
+    fun snapshotTapWaveform(tapId: Long): DoubleArray? =
+        finalizedTapWaveforms[tapId]?.copyOf()
+
+    fun snapshotTapSpectrum(tapId: Long): DoubleArray? =
+        finalizedTapSpectra[tapId]?.copyOf()
 
     fun subtractNoise(mags: DoubleArray, minBin: Int, maxBin: Int): DoubleArray {
         val noise = noiseSpectrum ?: return mags
@@ -138,22 +180,45 @@ class SignalProcessor {
         sampleRate: Int,
         bufferSize: Int,
         minBin: Int,
-        maxBin: Int
+        maxBin: Int,
+        minFreq: Double,
+        maxFreq: Double
     ): Double? {
         val spectrum = finalizedTapSpectra[tapId] ?: return null
-        return frequencyFromBandSpectrum(spectrum, sampleRate, bufferSize, minBin, maxBin)
+        return frequencyFromBandSpectrum(
+            spectrum,
+            finalizedTapWaveforms[tapId],
+            sampleRate,
+            bufferSize,
+            minBin,
+            maxBin,
+            minFreq,
+            maxFreq
+        )
     }
 
     fun frequencyFromAccumulatedTap(
         sampleRate: Int,
         bufferSize: Int,
         minBin: Int,
-        maxBin: Int
+        maxBin: Int,
+        minFreq: Double,
+        maxFreq: Double
     ): Double? {
         val accum = tapSpectrumAccum ?: return null
         if (tapSpectrumCount <= 0) return null
         val averaged = DoubleArray(accum.size) { accum[it] / tapSpectrumCount }
-        return frequencyFromBandSpectrum(averaged, sampleRate, bufferSize, minBin, maxBin)
+        val waveform = tapWaveformSamples?.toDoubleArray()
+        return frequencyFromBandSpectrum(
+            averaged,
+            waveform,
+            sampleRate,
+            bufferSize,
+            minBin,
+            maxBin,
+            minFreq,
+            maxFreq
+        )
     }
 
     fun frequencyFromPeak(peakIdx: Int, mags: DoubleArray, sampleRate: Int, bufferSize: Int): Double {
@@ -161,7 +226,14 @@ class SignalProcessor {
         return refinedBin * sampleRate / bufferSize
     }
 
-    fun stackedFrequency(sampleRate: Int, bufferSize: Int, minBin: Int, maxBin: Int): Double? {
+    fun stackedFrequency(
+        sampleRate: Int,
+        bufferSize: Int,
+        minBin: Int,
+        maxBin: Int,
+        minFreq: Double,
+        maxFreq: Double
+    ): Double? {
         val stacked = stackedSpectrum ?: return null
         if (stacked.size < 2) return null
         var peakIdx = 0
@@ -175,8 +247,18 @@ class SignalProcessor {
         if (peakMag <= 0.0) return null
         val padded = DoubleArray(maxBin + 2)
         for (i in stacked.indices) padded[minBin + i] = stacked[i]
-        val bandPeakBin = resolveFundamentalBin(minBin + peakIdx, padded, minBin, peakMag)
-        return frequencyFromPeak(bandPeakBin, padded, sampleRate, bufferSize)
+        return resolveFundamentalFrequency(
+            padded,
+            waveform = null,
+            sampleRate,
+            bufferSize,
+            minBin,
+            maxBin,
+            minFreq,
+            maxFreq,
+            peakBin = minBin + peakIdx,
+            peakMag = peakMag
+        )
     }
 
     fun toDisplaySpectrum(mags: DoubleArray, minBin: Int, maxBin: Int, points: Int = 64): FloatArray {
@@ -206,9 +288,15 @@ class SignalProcessor {
         if (tapSpectrumCount <= 0 || tapSpectrumAccum == null || activeTapId == 0L) return
         val averaged = DoubleArray(tapSpectrumAccum!!.size) { tapSpectrumAccum!![it] / tapSpectrumCount }
         finalizedTapSpectra[activeTapId] = averaged
+        tapWaveformSamples?.let { samples ->
+            if (samples.isNotEmpty()) {
+                finalizedTapWaveforms[activeTapId] = samples.toDoubleArray()
+            }
+        }
         if (activeTapId in tapsToStack) addToStack(averaged)
         tapSpectrumAccum = null
         tapSpectrumCount = 0
+        tapWaveformSamples = null
     }
 
     private fun addToStack(spectrum: DoubleArray) {
@@ -231,10 +319,13 @@ class SignalProcessor {
 
     private fun frequencyFromBandSpectrum(
         bandSpectrum: DoubleArray,
+        waveform: DoubleArray?,
         sampleRate: Int,
         bufferSize: Int,
         minBin: Int,
-        maxBin: Int
+        maxBin: Int,
+        minFreq: Double,
+        maxFreq: Double
     ): Double {
         var peakRelIdx = 0
         var peakMag = 0.0
@@ -246,12 +337,44 @@ class SignalProcessor {
         }
         val padded = DoubleArray(maxBin + 2)
         for (i in bandSpectrum.indices) padded[minBin + i] = bandSpectrum[i]
-        val bandPeakBin = resolveFundamentalBin(
-            minBin + peakRelIdx,
+        return resolveFundamentalFrequency(
             padded,
+            waveform,
+            sampleRate,
+            bufferSize,
             minBin,
-            peakMag
+            maxBin,
+            minFreq,
+            maxFreq,
+            peakBin = minBin + peakRelIdx,
+            peakMag = peakMag
         )
-        return frequencyFromPeak(bandPeakBin, padded, sampleRate, bufferSize)
+    }
+
+    private fun resolveFundamentalFrequency(
+        mags: DoubleArray,
+        waveform: DoubleArray?,
+        sampleRate: Int,
+        bufferSize: Int,
+        minBin: Int,
+        maxBin: Int,
+        minFreq: Double,
+        maxFreq: Double,
+        peakBin: Int,
+        peakMag: Double
+    ): Double {
+        val halvingBin = resolveFundamentalBin(peakBin, mags, minBin, peakMag)
+        val halvingHz = frequencyFromPeak(halvingBin, mags, sampleRate, bufferSize)
+        return FundamentalFrequencyEstimator.estimate(
+            halvingHz = halvingHz,
+            mags = mags,
+            waveform = waveform,
+            sampleRate = sampleRate,
+            bufferSize = bufferSize,
+            minBin = minBin,
+            maxBin = maxBin,
+            minFreq = minFreq,
+            maxFreq = maxFreq
+        ).frequencyHz
     }
 }

@@ -19,6 +19,12 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 
+data class NoiseCalibrationSnapshot(
+    val levelDb: Double,
+    val waveform: DoubleArray?,
+    val spectrum: DoubleArray?
+)
+
 data class AudioAnalysisResult(
     val frequencyHz: Double = 0.0,
     val amplitude: Double = 0.0,
@@ -61,7 +67,26 @@ class AudioAnalyzer(private val context: Context) {
 
     fun beginNoiseCalibration() = signalProcessor.beginNoiseCalibration()
 
-    fun finalizeNoiseCalibration(): Double = signalProcessor.finalizeNoiseCalibration()
+    fun finalizeNoiseCalibration(): NoiseCalibrationSnapshot {
+        val levelDb = signalProcessor.finalizeNoiseCalibration()
+        return NoiseCalibrationSnapshot(
+            levelDb = levelDb,
+            waveform = signalProcessor.snapshotNoiseWaveform(),
+            spectrum = signalProcessor.snapshotNoiseSpectrum()
+        )
+    }
+
+    fun snapshotTapWaveform(tapId: Long): DoubleArray? =
+        signalProcessor.snapshotTapWaveform(tapId)
+
+    fun snapshotTapSpectrum(tapId: Long): DoubleArray? =
+        signalProcessor.snapshotTapSpectrum(tapId)
+
+    fun analysisBins(): Pair<Int, Int> {
+        val minBin = (MIN_FREQ * BUFFER_SIZE / SAMPLE_RATE).toInt().coerceAtLeast(1)
+        val maxBin = (MAX_FREQ * BUFFER_SIZE / SAMPLE_RATE).toInt()
+        return minBin to maxBin
+    }
 
     fun resetTapAccumulation() {
         currentTapId = 0L
@@ -237,12 +262,18 @@ class AudioAnalyzer(private val context: Context) {
         val maxAmp = samples.maxOf { abs(it.toInt()) }.toDouble()
         val normalized = maxAmp / Short.MAX_VALUE
 
+        if (signalProcessor.isNoiseCalibrating) {
+            signalProcessor.accumulateNoise(mags, minBin, maxBin)
+            signalProcessor.accumulateNoiseWaveform(samples, samples.size)
+            return
+        }
+
         if (normalized < sensitivityThreshold) {
             if (wasAboveThreshold) {
                 val endedTapId = currentTapId
                 signalProcessor.endTap()
                 val finalizedFrequency = signalProcessor.frequencyFromFinalizedTap(
-                    endedTapId, SAMPLE_RATE, BUFFER_SIZE, minBin, maxBin
+                    endedTapId, SAMPLE_RATE, BUFFER_SIZE, minBin, maxBin, MIN_FREQ, MAX_FREQ
                 )
                 val finalizedAnalysis = bestTapAnalysis?.copy(
                     frequencyHz = finalizedFrequency ?: bestTapAnalysis!!.frequencyHz
@@ -261,7 +292,6 @@ class AudioAnalyzer(private val context: Context) {
                     )
                 }
             }
-            signalProcessor.accumulateNoise(mags, minBin, maxBin)
             return
         }
 
@@ -275,13 +305,16 @@ class AudioAnalyzer(private val context: Context) {
 
         val cleaned = signalProcessor.subtractNoise(mags, minBin, maxBin)
         signalProcessor.accumulateTapSpectrum(cleaned, minBin, maxBin)
+        signalProcessor.accumulateTapWaveform(samples, samples.size)
 
         val (peakIdx, peakMag) = signalProcessor.findPeak(cleaned, minBin, maxBin)
         val singleFrequency = signalProcessor.frequencyFromPeak(peakIdx, cleaned, SAMPLE_RATE, BUFFER_SIZE)
         val accumulatedFrequency = signalProcessor.frequencyFromAccumulatedTap(
-            SAMPLE_RATE, BUFFER_SIZE, minBin, maxBin
+            SAMPLE_RATE, BUFFER_SIZE, minBin, maxBin, MIN_FREQ, MAX_FREQ
         ) ?: singleFrequency
-        val stackedFrequency = signalProcessor.stackedFrequency(SAMPLE_RATE, BUFFER_SIZE, minBin, maxBin)
+        val stackedFrequency = signalProcessor.stackedFrequency(
+            SAMPLE_RATE, BUFFER_SIZE, minBin, maxBin, MIN_FREQ, MAX_FREQ
+        )
 
         val harmonicBin = (peakIdx * 2).coerceAtMost(cleaned.size - 1)
         val harmonicMag = cleaned[harmonicBin]
@@ -330,7 +363,9 @@ class AudioAnalyzer(private val context: Context) {
             tapId = currentTapId,
             signalQuality = signalQuality,
             stackedTapCount = signalProcessor.stackedTapCount,
-            stackedFrequencyHz = signalProcessor.stackedFrequency(SAMPLE_RATE, BUFFER_SIZE, minBin, maxBin) ?: 0.0,
+            stackedFrequencyHz = signalProcessor.stackedFrequency(
+                SAMPLE_RATE, BUFFER_SIZE, minBin, maxBin, MIN_FREQ, MAX_FREQ
+            ) ?: 0.0,
             tapFrequencyHz = singleFrequency,
             tapFinalizedId = tapFinalizedId,
             finalizedTapFrequencyHz = finalizedTapFrequencyHz,
